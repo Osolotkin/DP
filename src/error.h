@@ -1,0 +1,97 @@
+#pragma once
+
+// errors should be logged at the place, not propagated and then logged
+// as at point of occurrence there is way more info to offer to user
+
+#define ERR_STR(e) ((char*) Err::str[-e])
+#define ERR_PSTR(e) ((char**) &(Err::str[-e]))
+
+namespace Err {
+    
+    enum Err {
+        OK                              = 0,
+        MALLOC                          = -1,
+        UNEXPECTED_END_OF_FILE          = -2,
+        UNEXPECTED_END_OF_EXPRESSION    = -3,
+        INVALID_OPERATOR                = -4,
+        VARIABLE_ALREADY_DEFINED        = -5,
+        FUNCTION_ALREADY_DEFINED        = -6,
+        UNEXPECTED_SYMBOL               = -7,
+        UNKNOWN_VARIABLE                = -8,
+        UNKNOWN_FUNCTION                = -9,
+        INVALID_NUMBER_LITERAL          = -10,
+        INVALID_TYPE_CONVERSION         = -11,
+        MISSING_VARIABLE_NAME           = -12,
+        INVALID_TYPE_UNARY_OPERATOR     = -13,
+        INVALID_TYPE_BINARY_OPERATOR    = -14,
+        CANNOT_ASSIGN_TO_CONST          = -15,
+        UNKNOWN_DATA_TYPE               = -16,
+        INVALID_DATA_TYPE               = -17,
+        COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED = -18,
+        TYPE_INIT_ATTRIBUTES_COUNT_MISSMATCH    = -19,
+        INVALID_ATTRIBUTE_NAME          = -20,
+        OPERATOR_CANNOT_ACT_AS_UNARY    = -21,
+        OPERATOR_CANNOT_ACT_AS_BINARY   = -22,
+        CANNOT_GET_ADDRESS_OF_ADDRESS   = -23,
+        INVALID_USAGE_OF_OPERATOR       = -24,
+        CANNOT_EVALUATE_EXPRESION_AT_CMP_TIME = -25, // LOOK AT : maybe rename as NOT_COMPILE_TIME_EXPRESSION to make it shorter
+        INVALID_EMBED_ARRAY_SIZE        = -26,
+        UNKNOWN_QUALIFIER               = -27,
+        ARRAY_EXPECTED                  = -28,
+        TOO_MANY_ARGUMENTS              = -29,
+        APROPRETE_TAG_DOES_NOT_EXISTS   = -30,
+        BUFFER_OVERRUN                  = -31,
+        SYSTEM_COMMAND_EXECTUTION_FAILED    = -32,
+        INVALID_LVALUE                  = -33,
+        INVALID_VARIABLE_NAME           = -34,
+        NOT_ENOUGH_ARGUMENTS            = -35,
+        INVALID_DECLARATION_PLACE       = -36,
+        UNKNOWN_NAMESPACE               = -37,
+        INVALID_NUMBER_OF_ATTRIBUTES    = -38,
+    };
+
+    const char* const str[] = {
+
+        "OK",
+        "Malloc doesnt feel good...",
+        "Unexpected end of file!",
+        "Unexpected end of expression!",
+        "Invalid operator '%.*s'!",
+        "Variable '%.*s' already defined!",
+        "Function already defined!",
+        "Unexpected symbol!",
+        "Unknown variable '%.*s'!",
+        "Unknown function '%.*s'!",
+        "Invalid number literal!",
+        "Type conversion between '%s' and '%s' types is invalid!",
+        "Varable name is missing!",
+        "Invalid type '%s' to unary operator '%s'!",
+        "Invalid type '%s' to binary operator '%s'!",
+        "Cannot assign to constant lvalue!",
+        "Unknown data type!",
+        "Invalid data type!",
+        "Compile time known expression requaried!",
+        "Attributes count mismatch! %i instead of %i given!",
+        "Invalid attribute name '%.*s'!",
+        "Operator '%.*s' cannot act as unary!",
+        "Operator '%.*s' cannot act as binary!",
+        "Cannot get address of address!",
+        "Invalid usage of operatot '%.*s'!",
+        "Cannot evaluate expresion at compile time!",
+        "Embed array requaries compile time size!",
+        "Unknown qualifire! Valid are 'const' or 'embed'",
+        "Array expected!",
+        "Too many arguments!",
+        "Aproprete tag '%.*s' does not exists!",
+        "Buffer overrun!",
+        "System command execution failed!",
+        "Invalid lvalue!",
+        "Invalid variable name! %s",
+        "Not enough input arguments in function call!",
+        "%s is declared in invalid place!",
+        "Unknown namespace!",
+        "Invalid number of attributes."
+        
+    };
+
+}

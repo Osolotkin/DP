@@ -1,0 +1,5 @@
+#import file_4.vi;
+
+fcn foo() => int {
+    return 2 * (x + y);
+}

@@ -1,0 +1,490 @@
+#pragma once
+
+#include "utils.h"
+#include "globals.h"
+#include "error.h"
+
+#include <ctype.h>
+
+namespace Utils {
+
+    // ASCII string
+    long str2int(char* const str, const int len, int* endIdx) {
+
+        int i = 0;
+        int num = 0;
+        while(i < len && isdigit(str[i])) {
+
+            const char ch = str[i];
+            if (!isdigit(ch)) break;
+
+            num = num * 10 + (ch - '0');
+
+            i++;
+
+        }
+
+        *endIdx = i;
+        return num;
+
+    }
+
+    // buff contains original string at the very beginning
+    // buff has to be long enough to fill the result
+    // idx and len indicate string that has to be replaaced with rstr in buff
+    void replaceString(String buff, String rstr, const int idx, const int len) {
+
+        const int offset = idx + rstr.len;
+        for (int i = len - 1; i >= idx; i++) {
+            buff[i + offset] = buff[i];
+        }
+
+        for (int i = idx; i < offset; i++) {
+            buff[i] = rstr[i - idx];
+        }
+
+    }
+
+    // null-terminated
+    int skipWhiteSpaces(char *const str, int *const idx) {
+
+        int i = *idx;
+        int lines = 0;
+        while (1) {
+
+            const char ch = str[i];
+
+            if (ch > 32) {
+                // assuming valid char
+                *idx = i;
+                return lines;
+            } else if (ch == EOL) {
+                lines++;
+            } else if (ch == EOS) {
+                *idx = i;
+                return -1;
+            }
+
+            i++;
+        
+        }
+    
+    }
+
+    // returns Err::UNEXPECTED_END_OF_FILE if end of file is reached, otherwise Err::OK
+    int skipWhiteSpaces(char *const str, Location* loc) {
+
+        int i = loc->idx;
+        int lines = 0;
+        while (1) {
+
+            const char ch = str[i];
+
+            if (ch > 32) {
+                // assuming valid char
+                loc->idx = i;
+                loc->line += lines;
+                return Err::OK;
+            } else if (ch == EOL) {
+                lines++;
+            } else if (ch == EOS) {
+                loc->idx = i;
+                return Err::UNEXPECTED_END_OF_FILE; // maybe special error?
+            }
+
+            i++;
+        
+        }
+    
+    }
+
+    int skipTillWhiteSpace(char *const str) {
+
+        int i = 0;
+        while (str[i] > 32) {
+            i++;
+        }
+
+        return i;
+
+    }
+
+    // returns array of utf8 chars
+    // where lenOut returns length of array and byteOut size of the filed in bytes
+    // so, bytesOut can be 1, 2, 3, 4
+    // copyWhenAscii is bool which determine if in case of pure ascii str
+    // new string should be allocated and data copied.
+    // https://en.wikipedia.org/wiki/UTF-8
+    char* encodeUtf8(const char* const str, const int strLen, int* lenOut, int* bytesOut, int copyWhenAscii) {
+
+        const int mask1 = 0b01111111;
+        const int mask2 = 0b11011111;
+        const int mask3 = 0b11101111;
+
+        int len = 0;
+        int bytes = 1;
+        for (int i = 0; i < strLen; i++) {
+
+            const unsigned char ch = str[i];
+            if (ch <= mask1) {
+
+            }
+            else if (ch <= mask2) {
+                i++;
+                bytes = 2;
+            }
+            else if (ch <= mask3) {
+                i += 2;
+                bytes = 3;
+            }
+            else {
+                i += 3;
+                bytes = 4;
+            }
+
+            len++;
+
+        }
+
+        char* arr = (char*)malloc(bytes * len);
+        switch (bytes) {
+
+        case 1: {
+            if (copyWhenAscii) memcpy(arr, str, len);
+            else arr = (char*) str;
+            break;
+        }
+
+        case 2: {
+
+            uint16_t* arr16 = (uint16_t*)arr;
+
+            for (int i = 0; i < strLen; i++) {
+
+                const unsigned char ch = str[i];
+                if (ch <= mask1) {
+                    *arr16 = ch;
+                }
+                else if (ch <= mask2) {
+                    *arr16 = *((uint16_t*)(str + i));
+                    i++;
+                }
+
+                arr16++;
+
+            }
+
+            break;
+
+        }
+
+        case 3:
+        case 4: {
+
+            uint32_t* arr32 = (uint32_t*)arr;
+
+            for (int i = 0; i < strLen; i++) {
+
+                const unsigned char ch = str[i];
+                if (ch <= mask1) {
+                    *arr32 = ch;
+                }
+                else if (ch <= mask2) {
+                    *arr32 = *((uint16_t*)(str + i));
+                    i++;
+                }
+                else if (ch <= mask3) {
+                    *arr32 = 0;
+                    memcpy(arr32, str + i, 3);
+                    i += 2;
+                }
+                else {
+                    memcpy(arr32, str + i, 4);
+                    i += 3;
+                }
+
+                arr32++;
+
+            }
+
+            break;
+
+        }
+
+        default:
+            break;
+
+        }
+
+        *lenOut = len;
+        *bytesOut = bytes;
+        return arr;
+
+    }
+
+    // LOOK_AT : better name?
+    //           optimize?
+    int skipWhiteSpacesAndComments(char *const str, Location* loc) {
+
+        int i = loc->idx;
+        int lines = 0;
+        while (1) {
+
+            const char ch = str[i];
+            
+            if (ch == '/') {
+
+                const char nextCh = str[i + 1];
+                if (nextCh == '/') {
+                    // line comment
+
+                    i += 2;
+                    while (1) {
+
+                        const char ch = str[i];
+                        if (ch == EOL || ch == EOS) break;
+                        i++;
+                    
+                    }
+
+                    // i++;
+                    lines++;
+                
+                } else if (nextCh == SCOPE_BEGIN) {
+                    // block comment
+
+                    int toClose = 1;
+
+                    i += 2;
+                    while (1) {
+
+                        const char ch = str[i];
+
+                        if (ch == '\n') {
+                            lines++;
+                        } else if (ch == '/') {
+
+                            i++;
+                            const char nextCh = str[i];
+
+                            if (nextCh == SCOPE_BEGIN) {
+                                toClose++;
+                            } else if (nextCh == SCOPE_END) {
+                                toClose--;
+                                if (toClose <= 0) break;
+                            }
+                        
+                        } else if (ch == EOS) {
+
+                            loc->idx = i;
+                            loc->line += lines;
+                            // Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_FILE), loc);
+                            return Err::UNEXPECTED_END_OF_FILE;
+                        
+                        }
+
+                        i++;
+                    
+                    }
+
+                    // i++;
+                
+                } else {
+
+                    loc->idx = i;
+                    loc->line += lines;
+                    return Err::OK;
+                
+                }
+            
+            } else if (ch > 32) {
+                // assuming valid char
+                loc->idx = i;
+                loc->line += lines;
+                return Err::OK;
+            } else if (ch == EOL) {
+                lines++;
+            } else if (ch == EOS) {
+                loc->idx = i;
+                loc->line += lines;
+                return Err::UNEXPECTED_END_OF_FILE; // maybe special error?
+            }
+
+            i++;
+
+        }
+
+    }
+
+    int cmpOneChar(Operator *op, uint32_t word) {
+        return op->word == word & 0xFF;
+    }
+
+    int cmpTwoChars(Operator *op, char* const str) {
+
+        const uint16_t wordA = op->word;
+        const uint16_t wordB = *((uint16_t *) str);
+
+        if (wordA < 256)
+            return wordA == wordB & 0xFF;
+        return wordA == wordB;
+    
+    }
+
+    int findWordEnd(char *const str) {
+
+        for (int i = 0;; i++) {
+            const char ch = str[i];
+            if (ch <= ' ' || ch == ';') {
+                return i;
+            }
+        }
+    
+    }
+
+    int findWordEnd(char *const str, const char chA, const char chB) {
+
+        for (int i = 0;; i++) {
+            const char ch = str[i];
+            if (ch == chA || ch == chB || ch <= ' ' || ch == ';') {
+                return i;
+            }
+        }
+    
+    }
+
+    // TODO : rename to just findWordEnd
+    int findWordEndOrChar(char* const str, const char ch) {
+
+        for (int i = 0;; i++) {
+            const char sch = str[i];
+            if (sch == ch || sch <= ' ' || sch == ';') {
+                return i;
+            }
+        }
+    
+    }
+
+    int findVarEnd(char* const str) {
+
+        for (int i = 0;; i++) {
+            const char ch = str[i];
+            // ((ch < '0' || ch > 'z') || (ch > '9' && ch < 'A') || (ch != '_' && (ch > 'Z' && ch < 'a')))
+            if (!((ch >= '0' && ch <= '9') || ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_'))) {
+                return i;
+            }
+        }
+    
+    }
+
+    int findNumberEnd(char* const str) {
+
+        for (int i = 0;; i++) {
+
+            const char ch = str[i];
+            if (!(ch >= '0' && ch <= '9')) {
+                return i;
+            }
+        
+        }
+    
+    }
+
+    int findLineStart(char* const str, const int idx, int* tabCount) {
+
+        int tbCnt = 0; 
+        for (int i = idx - 1; i >= 0; i--) {
+            
+            const char ch = str[i];
+            
+            if (ch == EOL) {
+                *tabCount = tbCnt;
+                return i + 1;
+            }
+            
+            if (ch == '\t') tbCnt++;
+        
+        }
+
+        *tabCount = tbCnt;
+        return 0;
+
+    }
+
+    int findLineEnd(char* const str, const int idx) {
+
+        for (int i = idx; ; i++) {
+            const char ch = str[i];
+            if (ch == EOL || ch == EOS) return i - 1;
+        }
+
+    }
+
+    int skipWhiteSpacesBack(char* const str, const int idx) {
+
+        for (int i = idx - 1; i >= 0; i--) {
+            if (str[i] == EOL) return i + 1;
+        }
+
+        return 0;
+
+    }
+
+    char* findChar(char* str, const char ch) {
+        
+        while (1) {
+            
+            const char strCh = *str;
+            
+            if (strCh == EOF) return NULL;
+            if (strCh == ch) return str;
+            
+            str++;
+
+        }
+    
+    }
+
+    int findClosureEnd(char* const str, const int endCh) {
+
+        int i = 1;
+        int toClose = 1;
+        const int bgCh = str[endCh];
+        while (1) {
+
+            const int ch = str[i];
+            if (ch == bgCh) {
+                toClose++;
+            } else if (ch == endCh) {
+                if (toClose == 1) return i;
+                toClose--;
+            } else if (ch == EOF) {
+                return 0;
+            }
+
+            i++;
+
+        }
+
+    }
+
+    // fname has to be NULL terminated
+    // returns offset from the start of fname where dir ends
+    int stripDir(char* fname) {
+
+        int lastOffset = 0;
+        int i = 0;
+        while (1) {
+            
+            const char strCh = fname[i];
+            
+            if (strCh == EOS) return lastOffset;
+            if (strCh == '\\' || strCh == '/') lastOffset = i + 1;
+            
+            i++;
+
+        }
+
+    }
+
+}

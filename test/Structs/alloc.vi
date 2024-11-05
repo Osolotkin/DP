@@ -1,0 +1,9 @@
+
+def Point {
+    i32 x;
+    i32 y;
+}
+
+Point^ px = alloc Point { 1, 2 };
+Point^^ ppx = alloc Point^ null;
+Point^^ ppx2 = alloc Point^ px;

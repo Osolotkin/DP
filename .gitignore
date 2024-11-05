@@ -1,0 +1,15 @@
+build/
+doc/
+theses/
+test/*
+out/*
+src/.vscode/
+
+!test/Arrays
+!test/CompileTime
+!test/HelloWorld
+!test/Imports
+!test/Strings
+!test/Structs
+
+!out/ArrayList.c

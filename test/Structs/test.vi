@@ -1,0 +1,31 @@
+
+def Point {
+    int x;
+    int y;
+}
+
+
+Point point;
+
+point = { 1, 2 };
+printPoint(point);
+
+point = { 1, 2 } + { 1, 2 };
+printPoint(point);
+
+point = 0;
+printPoint(point);
+
+point = { 1, 2 } + 1 + { 4, 5 };
+printPoint(point);
+
+point = { x: 1, y: 2 };
+printPoint(point);
+
+point = { x: 1, y: 2 } + { x: 1, y: 2};
+printPoint(point);
+
+fcn printPoint(Point p) {
+    "[%i, %i]\n" p.x, p.y;
+}
+
