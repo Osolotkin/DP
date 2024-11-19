@@ -23,6 +23,7 @@
 #include "logger.h"
 #include "error.h"
 
+#define IS_HEX(ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'A' && (ch) <= 'F') || ((ch) >= 'a' && (ch) <= 'f'))
 #define IS_NUMBER(ch) ((ch) >= '0' && (ch) <= '9')
 #define IS_ALLOWED_VARIABLE_CHAR(ch) (((ch) >= '0' && (ch) <= '9') || (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_'))
 #define IS_ALLOWED_FIRST_VARIABLE_CHAR(ch) ((((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_'))
@@ -65,47 +66,18 @@ namespace Parser {
     void appendScope(Scope* scA, Scope* scB);
     void appendPrefixScope(Scope* scA, Scope* scB);
 
-    //int validateCustomTypeInitialization(TypeDefinition* dtype, TypeInitialization* dtypeInit);
-    //int validateImplicitCast(const DataTypeEnum dtype, const DataTypeEnum dtypeRef);
-    //int validateTypeInitialization(TypeDefinition* dtype, TypeInitialization* dtypeInit);
-    //int validateTypeInitializations(TypeDefinition* dtype, Variable* var);
-
-    //int evaluateTypeInitialization(Variable* op, int attributesCount, TypeInitialization** tinitOut);
-    //int evaluateDataTypes(Variable* op, TypeDefinition** customDtype = NULL, DataTypeEnum lvalueType = DT_UNDEFINED, TypeDefinition* lvalueTypeDef = NULL);
-    //int evaluate(Variable* op, TypeDefinition** customDtype = NULL);
-
     void stripWrapperExpressions(Variable** op);
 
-    // int copyExpression(Variable* src, Variable** dest, int* pidx, int* nextIdx);
-
-    // std::vector<Variable*> variables;
-    // std::vector<Variable*> fcnCalls;
-    // std::vector<VariableDefinition*> customDataTypesReferences;
-    // std::vector<VariableAssignment*> variableAssignments;
-    // std::vector<Variable*> cmpTimeVars;
-    // std::vector<Variable*> arrays;
-    // std::vector<Loop*> loops;
-    // std::vector<Variable*> branchExpressions;
-    // std::vector<Statement*> statements;
-    // std::vector<VariableDefinition*> initializations;
-    // std::vector<ReturnStatement*> returnStatements;
-    // std::vector<SwitchCase*> switchCases;
-
-    // std::vector<VariableAssignment*> arraysAllocations;
-
-    // std::vector<LangDef*> langDefs;
-    // std::vector<CodeBlock*> codeBlocks;
-    // std::vector<ForeignFunction*> foreignFunctions;
-
-    // std::vector<ImportStatement*> imports;
-
-    // std::vector<TypeDefinition*> customDataTypes;
-    // std::vector<Enumerator*> enumerators;
 
 
     // TODO : change when multi thread support will be added!!!
     //      used in ASSIGN_ID macro
     uint32_t varId = 0;
+    // to assign each array/string initialization an id, so
+    // render can easily create separate variable for them 
+    uint32_t arrId = 0;
+
+
 
     // huh
     Function* currentFunction = NULL;
@@ -236,6 +208,7 @@ namespace Parser {
             case '!='   : return OP_NOT_EQUAL;
             case '&&'   : return OP_BOOL_AND;
             case '||'   : return OP_BOOL_OR;
+            case '..'   : return OP_CONCATENATION;
             case '.'    : return OP_MEMBER_SELECTION;
             default     : return OP_NONE;
         
@@ -607,6 +580,7 @@ namespace Parser {
                         varDef->loc = startLoc;
 
                         scope->children.push_back(varDef);
+                        // scope->defs.push_back(varDef);
                         SyntaxNode::customDataTypesReferences.push_back(varDef);
                     
                     }
@@ -860,6 +834,8 @@ namespace Parser {
 
         StringInitialization* init = new StringInitialization;
         init->rawStr = std::string(str + startIdx, strLen);
+        init->rawPtr = str + startIdx;
+        init->rawPtrLen = strLen;
 
         int utf8Len;
         int utf8BytesPerChar;
@@ -868,9 +844,10 @@ namespace Parser {
         if (utf8BytesPerChar != 1) {
             init->wideStr = utf8Str;
             init->wideDtype = (DataTypeEnum) (DT_UINT_8 + utf8BytesPerChar - 1);
+            init->wideLen = utf8Len;
         } else {
             init->wideStr = NULL;
-            init->wideDtype = DT_INT_8;
+            init->wideDtype = DT_UINT_8;
         }
 
         *initOut = init;
@@ -1299,8 +1276,12 @@ namespace Parser {
 
         }
 
-        if (outVarDef) *outVarDef = varDef;
-        else scope->children.push_back(varDef);
+        if (outVarDef) {
+            *outVarDef = varDef;
+        } else {
+            scope->children.push_back(varDef);
+            scope->defs.push_back(varDef);
+        }
         scope->vars.push_back(var);
 
         return Err::OK;
@@ -2655,13 +2636,16 @@ namespace Parser {
                 }
 
                 loc->idx--;
-                lastType = G_SUB_EXPRESSION;
+                lastType = G_VARIABLE;
 
             } else if (ch == STRING_BEGIN) {
 
                 Variable* newOperand = new Variable();
                 newOperand->cvalue.dtypeEnum = DT_STRING;
                 newOperand->unrollExpression = 0;
+                
+                newOperand->id = arrId;
+                arrId++;
 
                 loc->idx++;
 
@@ -2726,6 +2710,9 @@ namespace Parser {
                 newOperand->cvalue.dtypeEnum = DT_ARRAY;
                 newOperand->unrollExpression = 0;
 
+                newOperand->id = arrId;
+                arrId++;
+                
                 loc->idx++;
 
                 const int err = parseArrayInitialization(str, loc, (ArrayInitialization**) &(newOperand->expression));
@@ -3098,7 +3085,7 @@ namespace Parser {
                     for (int i = loc->idx + 1; i < loc->idx + 4; i++) {
                         const char ch = str[i];
                         // TODO : has to be overall better way
-                        if (ch <= ' ' || ch == ';' || ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '.' || ch == '(' || ch == ')') {
+                        if (ch <= ' ' || ch == ';' || ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '(' || ch == ')') {
                             break;
                         }
                         wordLen++;
@@ -3407,9 +3394,47 @@ namespace Parser {
 
     }
 
-    // 
+    int parseEscapeChar(char* str, int* idx) {
+
+        const char ch = str[*idx];
+        switch(ch) {
+
+            case 'a':
+                return 0x07;
+            case 'b':
+                return 0x08;
+            case 'f':
+                return 0x0C;
+            case 'n':
+                return 0x0A;
+            case 'r':
+                return 0x0D;
+            case 't':
+                return 0x09;
+            case 'v':
+                return 0x0B;
+            case '\\':
+                return 0x5C;
+            case '\'':
+                return 0x27;
+            case '\"':
+                return 0x22;
+            case '\?':
+                return 0x3F;
+            case '\0':
+                return 0;
+            default:
+                return -1;
+
+        }
+
+    };
+
+    //
     int parseCharLiteral(char* const str, Location* loc, uint64_t* out) {
         
+        const int startIdx = loc->idx;
+
         uint64_t tmpOut = 0;
 
         int size = 0;
@@ -3421,16 +3446,23 @@ namespace Parser {
                 break;
             } else if (ch == ESCAPE_CHAR) {
                 loc->idx++;
-                ch = str[loc->idx];
+                ch = parseEscapeChar(str, &(loc->idx));
+                if (ch == -1) {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNSUPPORTED_ESCAPE_SEQUENCE), loc, 1);
+                    return Err::UNSUPPORTED_ESCAPE_SEQUENCE;
+                }
             }
             
-            if (ch == '\0') {
+            if (ch == EOS) {
                 Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_FILE));
                 return Err::UNEXPECTED_END_OF_FILE;
             }
 
-            tmpOut <<= 8;
-            tmpOut += ch;
+            uint64_t tmp = ch;
+            tmp <<= 56;
+
+            tmpOut >>= 8;
+            tmpOut |= tmp;
 
             size++;
 
@@ -3439,8 +3471,13 @@ namespace Parser {
         }
 
         if (size > 8) {
-            Logger::log(Logger::WARNING, "TODO warning: \n");
+            const int len = loc->idx - startIdx;
+            loc->idx -= startIdx - 1;
+            Logger::log(Logger::ERROR, ERR_STR(Err::DATA_TYPE_SIZE_EXCEEDED), loc, len);
+            return Err::DATA_TYPE_SIZE_EXCEEDED;
         }
+
+        tmpOut >>= (8 - size) * 8;
 
         *out = tmpOut;
         return size;

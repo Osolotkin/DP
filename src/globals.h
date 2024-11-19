@@ -103,8 +103,10 @@ enum State : uint64_t {
     
     IS_ALLOCATED = 1 << 13,
 
+    IS_STRING_12  = 1 << 14,
+
+    IS_RENDERED = 1 << 24,
     /*
-    IS_RESERVED_12  = 1 << 14,
     IS_RESERVED_13  = 1 << 15,
     IS_RESERVED_14  = 1 << 16,
     IS_RESERVED_15  = 1 << 17,
@@ -114,7 +116,6 @@ enum State : uint64_t {
     IS_RESERVED_19  = 1 << 21,
     IS_RESERVED_20  = 1 << 22,
     IS_RESERVED_21  = 1 << 23,
-    IS_RESERVED_22  = 1 << 24,
     IS_RESERVED_23  = 1 << 25,
     IS_RESERVED_24  = 1 << 26,
     IS_RESERVED_25  = 1 << 27,

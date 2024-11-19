@@ -1,0 +1,11 @@
+
+u8[] arrA = [ 1, 2, 3, 4, 5 ];
+u8[] arrB = [ 6, 7, 8, 9 ];
+
+
+// stack
+
+u8[] arrC1 = -((((arrA + 1) .. arrB) + 1) .. (arrB + 1));
+
+u8[9] arrC2;
+arrC2 = arrA .. arrB;

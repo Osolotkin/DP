@@ -69,6 +69,31 @@ namespace Utils {
     
     }
 
+    template <typename T, typename M, typename I>
+    T* find(I itBegin, I itEnd, char* const name, const int nameLen, M T::*member) {
+
+        for (I it = itBegin; it != itEnd; it++) {
+
+            M item = (*it)->*member;
+            if (nameLen != item->nameLen) continue;
+
+            char* const itemName = item->name;
+            const int itemNameLen = item->nameLen;
+
+            int j = 0;
+            for (; j < itemNameLen; j++) {
+                if (itemName[j] != name[j]) break;
+            }
+
+            if (j != itemNameLen) continue;
+            else return *it;
+        
+        }
+        
+        return NULL;
+    
+    }
+
     template <typename T>
     T* find(std::vector<T*> vec, char* const name, const int nameLen) {
         

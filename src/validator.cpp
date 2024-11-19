@@ -5,14 +5,18 @@
 #include "syntax.h"
 #include "utils.h"
 #include "interpreter.h"
+#include <iterator>
+#include "c_translator.h"
 
 namespace Validator {
 
     int validateImplicitCast(const DataTypeEnum dtype, const DataTypeEnum dtypeRef);
+    int validateImplicitCast(void* dtype, void* dtypeRef, DataTypeEnum dtypeEnum, DataTypeEnum dtypeEnumRef);
     int validateAttributeCast(Variable* var, Variable* attribute);
     int validateTypeInitialization(TypeDefinition* dtype, TypeInitialization* dtypeInit);
     int validateTypeInitializations(TypeDefinition* dtype, Variable* var);
     
+    int evaluateArrayLength(Variable* var, Variable* len);
     int evaluateTypeInitialization(Variable* op, int attributesCount, TypeInitialization** tinitOut);
     int evaluateDataTypes(Variable* op, TypeDefinition** customDtype = NULL, DataTypeEnum lvalueType = DT_UNDEFINED, TypeDefinition* lvalueTypeDef = NULL);
     int evaluate(Variable* op, TypeDefinition** customDtype = NULL);
@@ -27,6 +31,31 @@ namespace Validator {
     int validate() {
 
         Logger::log(Logger::INFO, "Validating...\n");
+
+        // control that each initialization doesn't have same name in same scope
+        for (int i = 0; i < SyntaxNode::initializations.size(); i++) {
+
+            VariableDefinition* const varDef = SyntaxNode::initializations[i];
+            Variable* const var = varDef->var;
+
+            Scope* scope = varDef->scope;
+            auto it = std::find(scope->defs.begin(), scope->defs.end(), varDef);
+            if (it == scope->defs.end()) {
+                Logger::log(Logger::ERROR, "Unexpected internal error! Required object of type VariableDefinition not found in expected collection Scope::defs!");
+                return Err::UNEXPECTED_ERROR;
+            }
+
+            const int idx = std::distance(scope->defs.begin(), it);
+            if (idx == 0) continue;
+
+            auto ritBegin = scope->defs.rbegin() + (scope->defs.size() - idx);
+
+            if (Utils::find(ritBegin, scope->defs.rend(), var->name, var->nameLen, &VariableDefinition::var)) {
+                Logger::log(Logger::ERROR, ERR_STR(Err::VARIABLE_ALREADY_DEFINED), var->loc, var->nameLen, var->nameLen, var->name);
+                return Err::VARIABLE_ALREADY_DEFINED;
+            }
+
+        }
 
         // link user defined data types with definitions
         //
@@ -195,52 +224,51 @@ namespace Validator {
                         var->def->flags |= IS_ARRAY_LIST;
                     }
 
-                    var->cvalue.arr->length = alloc->cvalue.arr->length;
+                    var->cvalue.arr->length = new Variable();
+                    const int err = evaluateArrayLength(alloc, var->cvalue.arr->length);
+                    if (err < 0) return err;
+
+                    //var->cvalue.arr->length = len.cvalue.i64;
                     arr->flags |= IS_ALLOCATED;
 
-                } else {
-                    // init
-
-                    // Variable* tmp = var;
-                    // stripWrapperExpressions(&var);
-                    stripWrapperExpressions(var);
-                    Variable* tmp = var;
-
-                    int len;
-                    if (tmp->expression && tmp->expression->type == EXT_ARRAY_INITIALIZATION) {
-                        
-                        len = ((ArrayInitialization*) (tmp->expression))->attributes.size();
-
-                        if (arr->length->cvalue.hasValue && arr->length->cvalue.i64 != len) {
-                            Logger::log(Logger::ERROR, "TODO error: array and alloc size missmatch, you can omit array size while initializationg array with rvalue...");
-                            return Err::INVALID_LVALUE;
-                        }
-                    
-                    } else if (tmp->expression && tmp->expression->type == EXT_SLICE) {
-
-                        Slice* slice = (Slice*) tmp->expression;
-                        
-                        evaluate(slice->eidx);
-                        evaluate(slice->bidx);
-                        
-                        Value ans = slice->eidx->cvalue;
-                        Interpreter::applyOperator(OP_SUBTRACTION, &ans, &(slice->bidx->cvalue));
-                        
-                        len = ans.i64 + 1;
-
-                    } else {
-
-                        Logger::log(Logger::ERROR, "TODO error: unexpected expression...");
-                        return Err::UNEXPECTED_SYMBOL;
-
-                    }
-
-                    var->cvalue.arr->length->cvalue.i64 = len;
-                    var->cvalue.arr->length->cvalue.dtypeEnum = DT_INT_64;
-                    var->cvalue.arr->pointsTo = NULL;
-                    var->cvalue.hasValue = 1;
+                    continue;
 
                 }
+
+                // init
+
+                // Variable* tmp = var;
+                // stripWrapperExpressions(&var);
+                stripWrapperExpressions(var);
+                Variable* tmp = var;
+
+                if (!(tmp->expression)) {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_ERROR));
+                    return Err::UNEXPECTED_SYMBOL;
+                }
+
+                int len;
+                int err;
+                Variable lenVar;
+
+                err = evaluateArrayLength(tmp, &lenVar);
+                if (err < 0) return err;
+
+                translatorC.printVariable(stdout, 0, &lenVar, NULL);
+                printf("\n");
+
+                len = lenVar.cvalue.i64;
+
+                if (arr->length->cvalue.hasValue && arr->length->cvalue.i64 != len) {
+                    Logger::log(Logger::ERROR, "TODO error: array and alloc size mismatch, you can omit array size while initializing array with rvalue...");
+                    return Err::INVALID_LVALUE;
+                }
+
+                var->cvalue.arr->length->cvalue.hasValue = 1;
+                var->cvalue.arr->length->cvalue.i64 = len;
+                var->cvalue.arr->length->cvalue.dtypeEnum = DT_INT_64;
+                var->cvalue.arr->pointsTo = NULL;
+                var->cvalue.hasValue = 1;
 
                 continue;
 
@@ -507,25 +535,32 @@ namespace Validator {
 
 
 
-        // initizlizations
+        // initializations
         for (int i = 0; i < SyntaxNode::initializations.size(); i++) {
 
             VariableDefinition* const varDef = SyntaxNode::initializations[i];
-            Variable* op = varDef->var;
-            DataTypeEnum dtEnum = op->cvalue.dtypeEnum;
-            void* dt = op->dtype;
+            Variable* var = varDef->var;
+            
+            DataTypeEnum dtypeEnumRef = var->cvalue.dtypeEnum;
+            void* dtypeRef = var->dtype;
 
-            int dtype = evaluateDataTypes(op, NULL, op->cvalue.dtypeEnum, (TypeDefinition*) (op->dtype));
-            if (dtype < 0) return dtype;
+            void* dtype;
+            int dtypeEnum = evaluateDataTypes(var, (TypeDefinition**) (&dtype), dtypeEnumRef, (TypeDefinition*) (dtypeRef));
+            if (dtypeEnum < 0) return dtypeEnum;
 
             // validateCustomTypeInitialization(dtype, dtypeInit);
-            if (!validateImplicitCast((DataTypeEnum) dtype, dtEnum)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_DATA_TYPE), varDef->loc, 1);
-                return Err::INVALID_DATA_TYPE;                
+            if (validateImplicitCast(dtype, dtypeRef, (DataTypeEnum) dtypeEnum, dtypeEnumRef) != Err::OK) {
+                Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_DATA_TYPE), varDef->loc, 0);
+                return Err::INVALID_DATA_TYPE;
             }
 
-            op->cvalue.dtypeEnum = dtEnum;
-            op->dtype = dt;
+            // if (!validateImplicitCast((DataTypeEnum) dtype, dtEnum)) {
+                // Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_DATA_TYPE), varDef->loc, 0);
+                // return Err::INVALID_DATA_TYPE;
+            // }
+
+            // var->cvalue.dtypeEnum = dtEnum;
+            // var->dtype = dt;
 
         }
 
@@ -567,16 +602,206 @@ namespace Validator {
 
     }
 
-    // the main thing is to glue initializations together
-    // lvalueSize : number of elements
-    // main initialization is the first one
-    int processRValue(Variable* rvalue, int lvalueSize) {
+    // len parameter is used to store expression that describes 
+    // the length of the array
+    // out represent internal variable representing length of array
+    // defined by calculated expression
+    // TODO : make evaluateDataType to also validate if
+    //        operands of expression can interact with operator
+    int evaluateArrayLength(Variable* var, Variable* len) {
+
+        Expression* ex = var->expression;
+        if (!ex) {
+
+            if (var->cvalue.dtypeEnum < DT_STRING) {
+                return Err::OK;
+            }
+            
+            if (!(len->expression)) {
+            
+                Variable* lenVar = var->cvalue.arr->length;
+                if (lenVar->expression) {
+                    len->expression = lenVar->expression;
+                } else {
+                    len->cvalue = lenVar->cvalue;
+                }
+
+            } else if (len->expression->type == EXT_BINARY) {
+                
+                BinaryExpression* obex = (BinaryExpression*) len->expression;
+                BinaryExpression* nbex = new BinaryExpression();
+
+                nbex->operandA = var;
+                nbex->operandB = new Variable();
+                nbex->operandB->expression = obex;
+
+                len->expression = nbex;
+
+            } else {
+
+            }
+            
+            return Err::OK;
+        
+        }
+
+        switch (ex->type) {
+
+            case EXT_UNARY : {
+                
+                UnaryExpression* uex = (UnaryExpression*) ex;
+                
+                const int err = evaluateArrayLength(uex->operand, len);
+                if (err < 0) return err;
+
+                return Err::OK;
+
+            }
+
+            case EXT_BINARY : {
+                
+                int err;
+                BinaryExpression* bex = (BinaryExpression*) ex;
+                
+                Variable lenA;
+                err = evaluateArrayLength(bex->operandA, &lenA);
+                if (err < 0) return err;
+
+                Variable lenB;
+                err = evaluateArrayLength(bex->operandB, &lenB);
+                if (err < 0) return err;
+                
+                if (bex->operType == OP_CONCATENATION) {
+                    // the only thing that can increase size
+                    
+                    if (lenA.cvalue.hasValue && lenB.cvalue.hasValue) {
+                        len->cvalue.hasValue = 1;
+                        len->cvalue.dtypeEnum = DT_INT_64;
+                        len->cvalue.i64 += lenA.cvalue.i64 + lenB.cvalue.i64;
+                        return Err::OK;
+                    }
+
+                    BinaryExpression* bex = new BinaryExpression();
+                    bex->oper = operators + OP_ADDITION;
+                    bex->operType = OP_ADDITION;
+                    bex->operandA = new Variable(&lenA);
+                    bex->operandB = new Variable(&lenB);
+
+                    len->expression = bex;
+                    
+                    return Err::OK;
+                
+                }
+
+                if (!(len->expression)) {
+                    Variable* lenVar = &lenA;
+                    if (lenVar->expression) {
+                        len->expression = lenVar->expression;
+                    }
+                    else {
+                        len->cvalue = lenVar->cvalue;
+                    }
+                }
+
+                return Err::OK;
+            
+            }
+
+            case EXT_WRAPPER : {
+                
+                WrapperExpression* wex = (WrapperExpression*) ex;
+                
+                const int err = evaluateArrayLength(wex->operand, len);
+                if (err < 0) return err;
+
+                return Err::OK;
+
+            }
+
+            case EXT_FUNCTION_CALL : {
+
+                FunctionCall* fex = (FunctionCall*) ex;
+                Variable* lenVar = fex->outArg->cvalue.arr->length;
+
+                if (!(len->expression)) {
+            
+                    len->cvalue = lenVar->cvalue;
+
+                } else if (len->expression->type == EXT_BINARY) {
+                    
+                    BinaryExpression* obex = (BinaryExpression*) len->expression;
+                    BinaryExpression* nbex = new BinaryExpression();
+
+                    nbex->operandA = lenVar;
+                    nbex->operandB = new Variable();
+                    nbex->operandB->expression = obex;
+
+                    len->expression = nbex;
+
+                }
+
+                return Err::OK;
+
+            }
+
+            case EXT_ARRAY_INITIALIZATION : {
+                    
+                if (len->expression) return Err::OK;
+
+                len->cvalue.hasValue = 1;
+                len->cvalue.dtypeEnum = DT_INT_64;
+                len->cvalue.i64 = ((ArrayInitialization*) (var->expression))->attributes.size();
+
+                return Err::OK;
+
+            }
+            
+            case EXT_SLICE : {
+
+                if (len->expression) return Err::OK;
+
+                Slice* slice = (Slice*) var->expression;
+                
+                evaluate(slice->eidx);
+                evaluate(slice->bidx);
+                
+                Value ans = slice->eidx->cvalue;
+                Interpreter::applyOperator(OP_SUBTRACTION, &ans, &(slice->bidx->cvalue));
+                
+                len->cvalue.hasValue = 1;
+                len->cvalue.dtypeEnum = DT_INT_64;
+                len->cvalue.i64 = ans.i64 + 1;
+
+                return Err::OK;
+
+            } 
+            
+            case EXT_STRING_INITIALIZATION : {
+
+                if (len->expression) return Err::OK;
+
+                StringInitialization* init = (StringInitialization*) var->expression;
+
+                len->cvalue.hasValue = 1;
+                len->cvalue.dtypeEnum = DT_INT_64;
+
+                if (init->wideStr) {
+                    len->cvalue.i64 = init->wideLen;
+                } else {
+                    len->cvalue.i64 = init->rawStr.size();
+                }
+
+                return Err::OK;
+
+            }
+
+        }
 
         return Err::OK;
-    
+
     }
 
-    // TODO : to makro or constexpr
+    // TODO : to macro or constexpr
     int validateImplicitCast(const DataTypeEnum dtype, const DataTypeEnum dtypeRef) {
 
         const int basicTypes = (dtype != DT_VOID && dtypeRef != DT_VOID) && (dtype < DT_STRING && dtypeRef < DT_STRING);
@@ -585,6 +810,42 @@ namespace Validator {
         const int sliceToArray = dtype == DT_SLICE && dtypeRef == DT_ARRAY;
 
         return (dtype == dtypeRef) || (basicTypes || arrayToPointer || pointerToArray || sliceToArray);
+
+    }
+
+    int validateImplicitCast(void* dtype, void* dtypeRef, DataTypeEnum dtypeEnum, DataTypeEnum dtypeEnumRef) {
+        
+        if (validateImplicitCast(dtypeEnum, dtypeEnumRef)) {
+            return Err::OK;
+        }
+
+        if (dtypeEnumRef == DT_ARRAY && dtypeEnum == DT_STRING) {
+
+            Array* arr = (Array*) dtypeRef;
+            StringInitialization* str = (StringInitialization*) dtype;
+
+            const int arrDtypeSize = dataTypes[arr->pointsToEnum].size;
+            const int strDtypeSize = dataTypes[str->wideDtype].size;
+
+            if (arrDtypeSize < strDtypeSize) {
+                Logger::log(Logger::ERROR, "TODO error: ");
+                return Err::INVALID_TYPE_CONVERSION;
+            }
+
+            if (!validateImplicitCast(arr->pointsToEnum, str->wideDtype)) {
+                Logger::log(Logger::ERROR, "TODO error: ");
+                return Err::INVALID_TYPE_CONVERSION;
+            }
+
+            if (arrDtypeSize < arrDtypeSize) {
+                Logger::log(Logger::WARNING, "TODO warning: One can use smaller dtype");
+            }
+
+            return Err::OK;
+
+        }
+
+        return Err::INVALID_TYPE_CONVERSION;
 
     }
 
@@ -635,8 +896,8 @@ namespace Validator {
     int validateTypeInitialization(TypeDefinition* dtype, TypeInitialization* dtypeInit) {
         
         if (dtype->vars.size() < dtypeInit->attributes.size()) {
-            Logger::log(Logger::ERROR, ERR_STR(Err::TYPE_INIT_ATTRIBUTES_COUNT_MISSMATCH), dtype->loc, dtype->nameLen, dtypeInit->attributes.size(), dtype->vars.size());
-            return Err::TYPE_INIT_ATTRIBUTES_COUNT_MISSMATCH;
+            Logger::log(Logger::ERROR, ERR_STR(Err::TYPE_INIT_ATTRIBUTES_COUNT_MISMATCH), dtype->loc, dtype->nameLen, dtypeInit->attributes.size(), dtype->vars.size());
+            return Err::TYPE_INIT_ATTRIBUTES_COUNT_MISMATCH;
         }
 
         const int count = dtype->vars.size();
@@ -834,6 +1095,10 @@ namespace Validator {
                         break;
 
                     default:
+                        if (op->cvalue.dtypeEnum == DT_CUSTOM) {
+                            Logger::log(Logger::ERROR, "TODO error: unsupported operator with struct!");
+                            return DT_UNDEFINED;
+                        }
                         op->cvalue.any = uex->operand->cvalue.any;
                         rdtype = dtype;
 
@@ -911,7 +1176,7 @@ namespace Validator {
                     }
 
                     default:
-                        
+
                         if (dtypeA >= dtypeB) {
                             op->cvalue.any = bex->operandA->cvalue.any;
                             rdtype = dtypeA;
@@ -994,6 +1259,12 @@ namespace Validator {
             }
 
             case EXT_STRING_INITIALIZATION: {
+
+                StringInitialization* init = (StringInitialization*) ex;
+
+                if (customDtype) {
+                    *customDtype = (TypeDefinition*) ex;
+                }
                 
                 return DT_STRING;
 
@@ -1090,8 +1361,8 @@ namespace Validator {
                 if (dtype < Err::OK) return dtype;
 
                 if (!(uex->operand->cvalue.hasValue)) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED), uex->operand->loc);
-                    return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED;
+                    Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), uex->operand->loc);
+                    return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
                 }
 
                 int x = Interpreter::applyOperator(uex->operType, &(uex->operand->cvalue));
@@ -1109,16 +1380,16 @@ namespace Validator {
                 if (dtypeA < Err::OK) return dtypeA;
 
                 if (!(bex->operandA->cvalue.hasValue)) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED), bex->operandA->loc);
-                    return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED;
+                    Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), bex->operandA->loc);
+                    return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
                 }
 
                 const int dtypeB = evaluate(bex->operandB);
                 if (dtypeB < Err::OK) return dtypeB;
 
                 if (!(bex->operandB->cvalue.hasValue)) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED), bex->operandB->loc);
-                    return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED;
+                    Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), bex->operandB->loc);
+                    return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
                 }
 
                 const int hasValueA = bex->operandA->cvalue.hasValue;

@@ -118,8 +118,8 @@ int printForeignCode(std::vector<T*> foreignCode, std::vector<LangDef*> langDefs
             }
 
             if (!langDef) {
-                Logger:log(Logger::ERROR, ERR_STR(Err::APROPRETE_TAG_DOES_NOT_EXISTS), foreignCode[i]->loc, str.size(), str.c_str());
-                return Err::APROPRETE_TAG_DOES_NOT_EXISTS;
+                Logger:log(Logger::ERROR, ERR_STR(Err::APPROPRIATE_TAG_DOES_NOT_EXISTS), foreignCode[i]->loc, str.size(), str.c_str());
+                return Err::APPROPRIATE_TAG_DOES_NOT_EXISTS;
             }
 
             foreignLangsMap[str]->data = langDef;
@@ -172,8 +172,8 @@ int printForeignFunction(std::vector<ForeignFunction*> foreignFcn, std::vector<L
             }
 
             if (!langDef) {
-                Logger:log(Logger::ERROR, ERR_STR(Err::APROPRETE_TAG_DOES_NOT_EXISTS), foreignFcn[i]->loc, str.size(), str.c_str());
-                return Err::APROPRETE_TAG_DOES_NOT_EXISTS;
+                Logger:log(Logger::ERROR, ERR_STR(Err::APPROPRIATE_TAG_DOES_NOT_EXISTS), foreignFcn[i]->loc, str.size(), str.c_str());
+                return Err::APPROPRIATE_TAG_DOES_NOT_EXISTS;
             }
 
             foreignLangsMap[str]->data = langDef;
@@ -391,8 +391,8 @@ int compileForeignCode(char* path) {
         }
 
         if (system(buffer) == -1) {            
-            Logger::log(Logger::ERROR, ERR_STR(Err::SYSTEM_COMMAND_EXECTUTION_FAILED));
-            return Err::SYSTEM_COMMAND_EXECTUTION_FAILED;
+            Logger::log(Logger::ERROR, ERR_STR(Err::SYSTEM_COMMAND_EXECUTION_FAILED));
+            return Err::SYSTEM_COMMAND_EXECUTION_FAILED;
         }
 
     }

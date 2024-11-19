@@ -5,6 +5,7 @@
 #include "c_translator.h"
 
 #define MAX_FILE_SIZE 256
+#define MAX_ARRAY_ID_SIZE 4
 
 const char  MAIN_FILE_STR[]         = "main.c";
 const char  FUNC_DEFS_FILE_STR[]    = "functions.h";
@@ -88,6 +89,9 @@ void c_printOperand(FILE* file, int level, Operand* const node, Variable* lvalue
 void c_printUnaryOperator(FILE* file, int level, UnaryOperator* const node, Variable* lvalue = NULL);
 void c_printBinaryOperator(FILE* file, int level, BinaryOperator* const node, Variable* lvalue = NULL);
 void c_printTernaryOperator(FILE* file, int level, TernaryOperator* const node, Variable* lvalue = NULL);
+
+void c_printArrayInitialization(FILE* file, int level, ArrayInitialization* const node, Variable* lvalue = NULL);
+void c_printStringInitialization(FILE* file, int level, StringInitialization* const node, Variable* lvalue = NULL);
 
 void c_printForeignLangFunction(FILE* file, Function* node);
 
@@ -480,6 +484,305 @@ void c_initArray(Expression* var) {
 
 }
 
+// returns 1 if IF_RENDERED was hit, otherwise 0
+int c_printForExpression(FILE* file, Variable* var, Variable* lvalue, int id) {
+    
+    Expression* ex = var->expression;
+    if (!ex) {
+        c_printVariable(file, 0, var);
+        if (var->cvalue.dtypeEnum == DT_ARRAY) {
+            fprintf(file, "[i]");
+        }
+        return 0;
+    }
+
+    switch (ex->type) {
+
+        case EXT_UNARY : {
+            
+            UnaryExpression* uex = (UnaryExpression*) (var->expression);
+            
+            c_printOperator(file, uex->operType);
+            
+            if (c_printForExpression(file, uex->operand, lvalue, id)) {
+                c_printVariable(file, 0, lvalue);
+                fprintf(file, "[off%i+i]", id);
+            }
+            
+            break;
+
+        }
+
+        case EXT_BINARY : {
+
+            BinaryExpression* bex = (BinaryExpression*)(var->expression);
+            if (bex->operType == OP_CONCATENATION) return 1;
+
+            if (c_printForExpression(file, bex->operandA, lvalue, id)) {
+                c_printVariable(file, 0, lvalue);
+                fprintf(file, "[off%i+i]", id);
+            }
+
+            c_printOperator(file, bex->operType);
+
+            c_printForExpression(file, bex->operandB, lvalue, id);
+            
+            break;
+
+        }
+
+        case EXT_WRAPPER : {
+            WrapperExpression* wex = (WrapperExpression*) ex;
+            if (wex->operand->flags & IS_RENDERED) return 1;
+            c_printForExpression(file, wex->operand, lvalue, id);
+            break;
+        }
+
+        case EXT_ARRAY_INITIALIZATION : {
+            fprintf(file, "%s[i]", var->name);
+            break;
+
+        }
+
+        case EXT_STRING_INITIALIZATION : {
+            fprintf(file, "%s[i]", var->name);
+            break;
+        }
+
+    }
+
+    return 0;
+
+}
+
+int c_printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arrLen, int id, int* maxId) {
+
+    Expression* ex = var->expression;
+    if (!ex) {
+        //c_printVariable(file, 0, var);
+        if (var->cvalue.dtypeEnum == DT_ARRAY) {
+            *arrLen = var->cvalue.arr->length;
+        }
+        return 0;
+    }
+
+    switch (ex->type) {
+
+        case EXT_UNARY : {
+
+            UnaryExpression* uex = (UnaryExpression*) (var->expression);
+            
+            c_printArrayRValue(file, lvalue, uex->operand, arrLen, id, maxId);
+            
+            break;
+        
+        }
+
+        case EXT_BINARY : {
+            BinaryExpression* bex = (BinaryExpression*) (var->expression);
+            if (bex->operType == OP_CONCATENATION) {
+
+                Variable* lenA = NULL;
+                c_printArrayRValue(file, lvalue, bex->operandA, &lenA, id + 1, maxId);
+                
+                if (*maxId < 0) {
+                    *maxId = id;
+                    fprintf(file, "int off%i=off0;", id);
+                } else {
+                    fprintf(file, "int off%i=off%i;", id, id + 1);
+                }
+
+                if (lenA) {
+                    fprintf(file, "int len%i=", id);
+                    c_printVariable(file, 0, lenA);
+                    fputc(';', file);
+
+                    fprintf(file, "for (int i = 0; i <");
+                    c_printVariable(file, 0, lenA);
+                    fprintf(file, "; i++){");
+                } else {
+                    fprintf(file, "int len%i=len%i;", id, id + 1);
+                    fprintf(file, "for (int i = 0; i < len%i; i++){", id + 1);
+                }
+                c_printVariable(file, 0, lvalue);
+                fprintf(file, "[off%i + i]=", id);
+                c_printForExpression(file, bex->operandA, lvalue, id);
+                fprintf(file, ";}");
+
+
+
+                if (lenA) {
+                    fprintf(file, "off%i+=", id);
+                    c_printVariable(file, 0, lenA);
+                    fputc(';', file);
+                } else {
+                    fprintf(file, "off%i+=len%i;", id, id + 1);
+                }
+
+
+
+                Variable* lenB = NULL;
+                c_printArrayRValue(file, lvalue, bex->operandB, &lenB, id + 1, maxId);
+
+                if (lenB) {
+                    fprintf(file, "len%i+=", id);
+                    c_printVariable(file, 0, lenB);
+                    fputc(';', file);
+
+                    fprintf(file, "for (int i = 0; i <");
+                    c_printVariable(file, 0, lenB);
+                    fprintf(file, "; i++){");
+                } else {
+                    fprintf(file, "len%i+=len%i;", id, id + 1);
+                    fprintf(file, "for (int i = 0; i < len%i; i++){", id + 1);
+                }
+                c_printVariable(file, 0, lvalue);
+                fprintf(file, "[off%i+i]=", id);
+                c_printForExpression(file, bex->operandB, lvalue, id);
+                fprintf(file, ";}");
+
+
+
+                if (lenA) {
+                    fprintf(file, "off%i-=", id);
+                    c_printVariable(file, 0, lenA);
+                    fputc(';', file);
+                } else {
+                    fprintf(file, "off%i-=len%i;", id, id + 1);
+                }
+
+
+
+                var->flags |= IS_RENDERED;
+
+                return 1;
+                
+            }
+
+            c_printArrayRValue(file, lvalue, bex->operandA, arrLen, id, maxId);
+            c_printArrayRValue(file, lvalue, bex->operandB, arrLen, id, maxId);
+
+            break;
+        }
+
+        case EXT_WRAPPER : {
+            WrapperExpression* wex = (WrapperExpression*) ex;
+            return c_printArrayRValue(file, lvalue, wex->operand, arrLen, id, maxId);
+            break;
+        }
+
+        case EXT_ARRAY_INITIALIZATION : {
+            
+            ArrayInitialization* init = (ArrayInitialization*) ex;
+            
+            const int nameLen = 1 + MAX_ARRAY_ID_SIZE + 1;
+            var->name = (char*) malloc(nameLen);
+            sprintf(var->name, "a%i", var->id);
+            
+            c_printDataType(file, var->cvalue.dtypeEnum, var->cvalue.arr);
+            fprintf(file, " %s[]=", var->name);
+            c_printArrayInitialization(file, 0, init);
+            fputc(';', file);
+
+            break;
+
+        }
+
+        case EXT_STRING_INITIALIZATION : {
+            
+            StringInitialization* init = (StringInitialization*) ex;
+            
+            const int nameLen = 1 + MAX_ARRAY_ID_SIZE + 1;
+            var->name = (char*) malloc(nameLen);
+            sprintf(var->name, "a%i", var->id);
+
+            c_printDataType(file, init->wideDtype);
+            fprintf(file, " %s[]=", var->name);
+            c_printStringInitialization(file, 0, init);
+            fputc(';', file);
+
+            break;
+
+        }
+
+
+    }
+
+    return 0;
+
+}
+
+void c_printArray(FILE* file, Variable* lvalue, Variable* rvalue) {
+
+    Variable* var = lvalue->expression ? lvalue : rvalue;
+
+    Expression* ex = lvalue->expression;
+    const int exType = ex ? ex->type : EXT_WRAPPER;
+    switch (exType) {
+        
+        case EXT_SLICE : {
+
+            Slice* slice = (Slice*) ex;
+            var = slice->arr;
+
+            fprintf(file, ";{int off0=""0;int len0=");
+
+            fprintf(file, ";{int off0=");
+            c_printVariable(file, 0, slice->bidx);
+
+            
+            fprintf(file, ";int len0=");
+            c_printVariable(file, 0, slice->eidx);
+            fputc('-', file);
+            c_printVariable(file, 0, slice->bidx);
+            fputc(';', file);
+
+            break;
+
+        }
+
+        case EXT_ARRAY_INITIALIZATION : {
+            fputc('=', file);
+            c_printArrayInitialization(file, 0, (ArrayInitialization*) ex);
+            fputc(';', file);
+            return;
+        }
+
+        case EXT_STRING_INITIALIZATION : {
+            fputc('=', file);
+            c_printStringInitialization(file, 0, (StringInitialization*) ex);
+            fputc(';', file);
+            return;
+        }
+    
+        default:
+            fprintf(file, ";{int off0=""0;int len0=");
+            c_printVariable(file, 0, ((Array*) (lvalue->dtype))->length);
+            fputc(';', file);
+            break;
+
+    }
+
+    Variable* arrLen = NULL;
+    int maxId = -2;
+    c_printArrayRValue(file, lvalue, var, &arrLen, 1, &maxId);
+
+    fprintf(file, "for (int i = 0; i < len0; i++){");
+    c_printVariable(file, 0, lvalue);
+    fprintf(file, "[i]=");
+    if (c_printForExpression(file, var, lvalue, 0)) {
+        c_printVariable(file, 0, lvalue);
+        fprintf(file, "[i];");
+    }
+    fprintf(file, ";}");
+
+    fputc('}', file);
+            
+    // for startIdx -> endIdx
+
+
+}
+
 void c_printVariableDefinition(FILE* file, int level, VariableDefinition* const node, Variable* lvalue) {
 
     if (node->flags & IS_CMP_TIME) return;
@@ -490,23 +793,13 @@ void c_printVariableDefinition(FILE* file, int level, VariableDefinition* const 
     
     if (node->var->cvalue.dtypeEnum == DT_ARRAY) {
         
-        if (node->var->expression->type == EXT_SLICE) {
-
-            Slice* slice = (Slice*) node->var->expression;
-
-            fprintf(file, ";for(int i=");
-            c_printVariable(file, level, slice->bidx);
-            fprintf(file, ",j=0;i<=");
-            c_printVariable(file, level, slice->eidx);
-            fprintf(file, ";i++,j++){");
-            c_printVariable(file, level, node->var);
-            fprintf(file, "[j]=");
-            c_printVariable(file, level, slice->arr);
-            fprintf(file, "[i];}");
-            
-            return;
-        
+        if (node->var->expression) {
+            c_printArray(file, node->var, NULL);
+        } else {
+            fputc(';', file);
         }
+
+        return;
 
     }
 
@@ -564,6 +857,11 @@ void c_printVariableAssignment(FILE* file, int level, VariableAssignment* const 
     if (!node->rvar) {
         node->lvar->print(&translatorC, file, level);
         fputc(';', file);
+    }
+
+    if (node->lvar->cvalue.dtypeEnum == DT_ARRAY) {
+        c_printArray(file, node->lvar, node->rvar);
+        return;
     }
 
     const int lvalIsSlice = (node->lvar->expression) ? node->lvar->expression->type == EXT_SLICE : 0;
@@ -795,6 +1093,63 @@ void c_printTypeInitialization(FILE* file, int level, TypeInitialization* const 
 }
 
 void c_printStringInitialization(FILE* file, int level, StringInitialization* const node, Variable* lvalue) {
+
+    if (!(node->wideStr)) {
+        fprintf(file, "\"%.*s\"", node->rawPtrLen, node->rawPtr);
+        return;
+    }
+
+    fputc('{', file);
+
+    switch (node->wideDtype) {
+
+        case DT_UINT_8: {
+            uint8_t* arr = (uint8_t*) node->wideStr;
+
+            for (int i = 0; i < node->wideLen - 1; i++) {
+                fprintf(file, "%llu,", arr[i]);
+            }
+            fprintf(file, "%llu", arr[node->wideLen - 1]);
+
+            break;
+        }
+
+        case DT_UINT_16: {
+            uint16_t* arr = (uint16_t*) node->wideStr;
+
+            for (int i = 0; i < node->wideLen - 1; i++) {
+                fprintf(file, "%llu,", arr[i]);
+            }
+            fprintf(file, "%llu", arr[node->wideLen - 1]);
+
+            break;
+        }
+
+        case DT_UINT_32: {
+            uint32_t* arr = (uint32_t*) node->wideStr;
+
+            for (int i = 0; i < node->wideLen - 1; i++) {
+                fprintf(file, "%llu,", arr[i]);
+            }
+            fprintf(file, "%llu", arr[node->wideLen - 1]);
+
+            break;
+        }
+
+        case DT_UINT_64: {
+            uint64_t* arr = (uint64_t*) node->wideStr;
+
+            for (int i = 0; i < node->wideLen - 1; i++) {
+                fprintf(file, "%llu,", arr[i]);
+            }
+            fprintf(file, "%llu", arr[node->wideLen - 1]);
+
+            break;
+        }
+
+    }
+
+    fputc('}', file);
 
 }
 

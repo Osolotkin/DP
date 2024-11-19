@@ -211,6 +211,13 @@ Operator operators[] = {
         '!',
         4,
         IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_CONCATENATION
+    {
+        '..',
+        4,
+        IS_BINARY | IS_TWO_CHAR
     }
 
 };
@@ -395,6 +402,12 @@ Variable::Variable(Scope* const sc, DataTypeEnum dtype, char* name, int nameLen)
     
     this->name = name;
     this->nameLen = nameLen;
+
+}
+
+Variable::Variable(Variable* var) {
+    
+    memcpy(this, var, sizeof(Variable));
 
 }
 
@@ -777,8 +790,8 @@ int Syntax::evaluate(Operand* op) {
             if (dtype < Err::OK) return dtype;
 
             if (!(uex->operand->cvalue.hasValue)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED), uex->operand->loc);
-                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED;
+                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), uex->operand->loc);
+                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
             }
 
             Interpreter::applyOperator(uex->operType, &(uex->operand->cvalue));
@@ -794,16 +807,16 @@ int Syntax::evaluate(Operand* op) {
             if (dtypeA < Err::OK) return dtypeA;
 
             if (!(bex->operandA->cvalue.hasValue)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED), bex->operandA->loc);
-                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED;
+                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), bex->operandA->loc);
+                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
             }
 
             const int dtypeB = evaluate(bex->operandB);
             if (dtypeB < Err::OK) return dtypeB;
 
             if (!(bex->operandB->cvalue.hasValue)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED), bex->operandB->loc);
-                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUARIED;
+                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), bex->operandB->loc);
+                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
             }
 
             const int hasValueA = bex->operandA->cvalue.hasValue;
@@ -887,6 +900,22 @@ DataType dataTypes[DATA_TYPES_COUNT] = {
         1
     },
 
+    // INT_8
+    {
+        (char*) KWS_INT_8,
+        sizeof(KWS_INT_8) - 1,
+        1,
+        1
+    },
+
+    // INT_16
+    {
+        (char*) KWS_INT_16,
+        sizeof(KWS_INT_16) - 1,
+        2,
+        1
+    },
+
     // INT_32
     {
         (char*) KWS_INT_32,
@@ -899,6 +928,38 @@ DataType dataTypes[DATA_TYPES_COUNT] = {
     {
         (char*) KWS_INT_64,
         sizeof(KWS_INT_64) - 1,
+        8,
+        2
+    },
+
+    // UINT_8
+    {
+        (char*) KWS_UINT_8,
+        sizeof(KWS_UINT_8) - 1,
+        1,
+        1
+    },
+
+    // UINT_16
+    {
+        (char*)KWS_UINT_16,
+        sizeof(KWS_UINT_16) - 1,
+        2,
+        1
+    },
+
+    // UINT_32
+    {
+        (char*)KWS_UINT_32,
+        sizeof(KWS_UINT_32) - 1,
+        4,
+        1
+    },
+
+    // UINT_64
+    {
+        (char*)KWS_UINT_64,
+        sizeof(KWS_UINT_64) - 1,
         8,
         2
     },

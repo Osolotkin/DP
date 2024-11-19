@@ -251,6 +251,7 @@ enum OperatorEnum {
     OP_MEMBER_SELECTION,
     OP_DEREFERENCE_MEMBER_SELECTION,
     OP_NEGATION,
+    OP_CONCATENATION,
     // OP_CAST // to tie cast to dtype, not sure about it as operator, but lets see
 };
 /*
@@ -362,7 +363,8 @@ struct Scope : SyntaxNode {
     std::vector<SyntaxNode*> children;
 
     // LOOK AT : unite?
-    std::vector<Variable*> vars; // LOOK AT : maybe exchange for an hash, depends, how many vars are here typicaly per scope
+    std::vector<Variable*> vars;
+    std::vector<VariableDefinition*> defs;
     std::vector<Function*> fcns;
     std::vector<TypeDefinition*> customDataTypes; // TODO : do we need it?
     std::vector<Enumerator*> enums; // LOOK AT : maybe unite enum under Variable interface or something
@@ -541,11 +543,16 @@ struct StringInitialization : Expression {
         type = EXT_STRING_INITIALIZATION;
     };
 
+    // pointer to start of the string in source file
+    char* rawPtr;
+    int rawPtrLen;
+
     // already escaped
     std::string rawStr;
 
     void* wideStr;
     DataTypeEnum wideDtype;
+    int wideLen;
     
     virtual void print(Translator* const translator, FILE* file, int level = 0);
 
@@ -610,6 +617,7 @@ struct Variable : INamedVar, Operand {
     Variable(Scope* const sc, DataTypeEnum dtype);
     Variable(Scope* const sc, DataTypeEnum dtype, Location* loc);
     Variable(Scope* const sc, DataTypeEnum dtype, char* name, int nameLen);
+    Variable(Variable* var);
     virtual void print(Translator* const translator, FILE* file, int level);
 
 };
