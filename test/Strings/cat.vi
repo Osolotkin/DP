@@ -4,8 +4,23 @@ u8[] arrB = [ 6, 7, 8, 9 ];
 
 
 // stack
-
 u8[] arrC1 = -((((arrA + 1) .. arrB) + 1) .. (arrB + 1));
 
+// or
 u8[9] arrC2;
 arrC2 = arrA .. arrB;
+
+// heap
+u8[const] arrC3 = alloc [] : arrA .. arrB;
+
+// or
+u8[const] arrC4 = alloc [9];
+arrC4 = arrA .. arrB;
+
+// slices, appending
+u8[20] arrC5;
+arrC5[1:] = arrA[1:] .. arrB[2:5];
+
+// array-list appending
+u8[] arrC6;
+arrC6[] = arrA[1:] .. arrB[2:5];

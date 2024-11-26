@@ -37,11 +37,24 @@ int arrayListInsert##name(ArrayList##name* arr, const int idx, dtype value) { \
     arr->data[idx] = value; \
     if (idx >= arr->len) arr->len = idx + 1; \
     return 0; \
+} \
+int arrayListAppendAlloc##name(ArrayList##name* arr, const int size) { \
+    const int newSize = arr->len + size; \
+    if (newSize <= arr->size) return; \
+    void* tmp = realloc(arr->data, sizeof(dtype) * (newSize + newSize / 2)); \
+    if (!tmp) return -1; \
+    if (tmp != arr->data) arr->data = tmp; \
+    arr->size = newSize; \
 }
 
-TypedArrayList(uint32_t, UI32);
-TypedArrayList(uint64_t, UI64);
+TypedArrayList(uint8_t, U8);
+TypedArrayList(uint16_t, U16);
+TypedArrayList(uint32_t, U32);
+TypedArrayList(uint64_t, U64);
 
+
+TypedArrayList(int8_t, I8);
+TypedArrayList(int16_t, I16);
 TypedArrayList(int32_t, I32);
 TypedArrayList(int64_t, I64);
 

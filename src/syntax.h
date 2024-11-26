@@ -959,6 +959,8 @@ struct Slice : Expression {
     Variable* bidx;
     Variable* eidx;
 
+    Variable* len = NULL;
+
     void print(Translator* const translator, FILE* file, int level);
 
 };

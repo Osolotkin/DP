@@ -1038,7 +1038,7 @@ namespace Parser {
     }
 
     // either alloc or expression
-    // alloc [DtypeName] [DtypeInit]
+    // alloc [DtypeName, omitted if mainDtype >= 0] ['[' Expression defining length ']'] [:] [DtypeInit]
     int parseRValue(Variable* outVar, char* str, Location* loc, Scope* scope, uint16_t endChar, DataTypeEnum mainDtype) {
         
         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
@@ -1050,22 +1050,26 @@ namespace Parser {
             if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
             DataTypeEnum dtype = mainDtype;
-            char* dtypeName = outVar->def->dtypeName;
-            int dtypeNameLen = outVar->def->dtypeNameLen;
-            if (mainDtype <= 0) {
-
-                dtypeName = str + loc->idx;
-                dtypeNameLen = Utils::findVarEnd(dtypeName);
-                if (dtypeNameLen <= 0) {
-                    Logger::log(Logger::ERROR, "TODO : error parseRValue alloc requaries dtype name!");
-                    return Err::INVALID_DATA_TYPE;
-                }
-
+            char* dtypeName = str + loc->idx; // outVar->def->dtypeName;
+            int dtypeNameLen = Utils::findVarEnd(dtypeName); // outVar->def->dtypeNameLen;
+            
+            if (dtypeNameLen > 0) {
+                
                 loc->idx += dtypeNameLen;
 
-                dtype = (DataTypeEnum) findDataType(dtypeName, dtypeNameLen);
+                dtype = (DataTypeEnum)findDataType(dtypeName, dtypeNameLen);
                 if (dtype == DT_UNDEFINED) {
                     dtype = DT_CUSTOM;
+                } else {
+                    dtypeName = NULL;
+                    dtypeNameLen = 0;
+                }
+            
+            } else {
+
+                if (mainDtype <= 0) {
+                    Logger::log(Logger::ERROR, "TODO : error parseRValue alloc requires dtype name! Can be omitted only in definition!");
+                    return Err::INVALID_DATA_TYPE;
                 }
 
             }
@@ -1093,8 +1097,17 @@ namespace Parser {
 
             parseDataTypeDecorators(dtype, scope, str, loc, var);
 
-            const int err = parseExpression(var, str, loc, endChar);
-            if (err < 0) return err;
+            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+            if (str[loc->idx] == STATEMENT_BEGIN) {
+                loc->idx++;
+                const int err = parseExpression(var, str, loc, endChar);
+                if (err < 0) return err;
+            } else if (str[loc->idx] != STATEMENT_END) {
+                Logger::log(Logger::ERROR, "TODO error: parseRValue unexpected symbol!");
+                return Err::UNEXPECTED_SYMBOL;
+            } else {
+                loc->idx;
+            }
             
             fcnCall->inArgs.push_back(var);
 
@@ -1103,7 +1116,7 @@ namespace Parser {
             // initializations.push_back(varDef);
             
             if (var->cvalue.dtypeEnum == DT_CUSTOM) SyntaxNode::customDataTypesReferences.push_back(varDef);
-            
+
         } else {
             
             const int err = parseExpression(outVar, str, loc, endChar);
@@ -3016,6 +3029,9 @@ namespace Parser {
                         newOperand->scope = operand->scope;
                         newOperand->unrollExpression = 1;
                         newOperand->expression = slice;
+                        
+                        newOperand->id = arrId;
+                        arrId++;
 
                         Variable* arr;
                         if (lastUnaryExpression) {

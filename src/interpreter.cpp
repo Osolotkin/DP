@@ -503,6 +503,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
 
         // INT
         { .unary = &applyUnaryOperatorPlusI32 },
@@ -523,6 +524,61 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorGreaterThanOrEqual,
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        // INT_8
+        {.unary = &applyUnaryOperatorPlusI32 },
+        {.unary = &applyUnaryOperatorMinusI32 },
+        & applyBinaryOperatorAdditionI32,
+        & applyBinaryOperatorSubtractionI32,
+        & applyBinaryOperatorMultiplicationI32,
+        & applyBinaryOperatorDivisionI32,
+        & applyBinaryOperatorModuloI32,
+        {.unary = &applyUnaryOperatorAddress },
+        NULL,
+        NULL,
+        & applyBinaryOperatorEqual,
+        & applyBinaryOperatorNotEqual,
+        & applyBinaryOperatorLessThan,
+        & applyBinaryOperatorGreaterThan,
+        & applyBinaryOperatorLessThanOrEqual,
+        & applyBinaryOperatorGreaterThanOrEqual,
+        & applyBinaryOperatorBoolAnd,
+        & applyBinaryOperatorBoolOr,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        // INT_16
+        {.unary = &applyUnaryOperatorPlusI32 },
+        {.unary = &applyUnaryOperatorMinusI32 },
+        & applyBinaryOperatorAdditionI32,
+        & applyBinaryOperatorSubtractionI32,
+        & applyBinaryOperatorMultiplicationI32,
+        & applyBinaryOperatorDivisionI32,
+        & applyBinaryOperatorModuloI32,
+        {.unary = &applyUnaryOperatorAddress },
+        NULL,
+        NULL,
+        & applyBinaryOperatorEqual,
+        & applyBinaryOperatorNotEqual,
+        & applyBinaryOperatorLessThan,
+        & applyBinaryOperatorGreaterThan,
+        & applyBinaryOperatorLessThanOrEqual,
+        & applyBinaryOperatorGreaterThanOrEqual,
+        & applyBinaryOperatorBoolAnd,
+        & applyBinaryOperatorBoolOr,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -555,6 +611,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
         
         // INT_64
         { .unary = &applyUnaryOperatorPlusI64 },
@@ -575,6 +632,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorGreaterThanOrEqual,
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -607,6 +665,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
         
         // FLOAT_64
         { .unary = &applyUnaryOperatorPlusF64 },
@@ -633,6 +692,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
         
         // STRING
         NULL,
@@ -644,6 +704,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         { .unary = &applyUnaryOperatorAddress },
         NULL, 
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -685,6 +746,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
         
         // ARRAY
         NULL,
@@ -711,6 +773,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
         
         // MULTIPLE_TYPES
         NULL,
@@ -721,6 +784,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         { .unary = &applyUnaryOperatorAddress },
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -763,8 +827,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
         
         // MEMBER
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -801,6 +867,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         &applyBinaryOperatorMemberSelectionEnum,
+        NULL,
         NULL,
         NULL,
         NULL,

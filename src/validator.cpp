@@ -21,6 +21,8 @@ namespace Validator {
     int evaluateDataTypes(Variable* op, TypeDefinition** customDtype = NULL, DataTypeEnum lvalueType = DT_UNDEFINED, TypeDefinition* lvalueTypeDef = NULL);
     int evaluate(Variable* op, TypeDefinition** customDtype = NULL);
 
+    int getFirstNonArrayDtype(Array* arr, int maxLevel = -1, int* level = NULL);
+
     void stripWrapperExpressions(Variable** op);
     void stripWrapperExpressions(Variable* op);
 
@@ -194,13 +196,9 @@ namespace Validator {
             Variable* var = SyntaxNode::arrays[i];
             Array* arr = var->cvalue.arr;
 
-            // var should directly represent definiton
-            // therefore var->expression should be either by value initialization or allocation
-
             // arr->flags : info about length
             // var should directly represent definiton
-            // therefore var->expression should be either by value initialization or allocation
-
+            
             if (var->expression) {
 
                 if (var->expression->type == EXT_FUNCTION_CALL) {
@@ -224,9 +222,12 @@ namespace Validator {
                         var->def->flags |= IS_ARRAY_LIST;
                     }
 
-                    var->cvalue.arr->length = new Variable();
-                    const int err = evaluateArrayLength(alloc, var->cvalue.arr->length);
-                    if (err < 0) return err;
+                    if (alloc->cvalue.dtypeEnum != DT_ARRAY) {
+                        Logger::log(Logger::ERROR, "TODO error: validating arrays!");
+                        return Err::INVALID_DATA_TYPE;
+                    }
+
+                    var->cvalue.arr->length = alloc->cvalue.arr->length;
 
                     //var->cvalue.arr->length = len.cvalue.i64;
                     arr->flags |= IS_ALLOCATED;
@@ -235,27 +236,27 @@ namespace Validator {
 
                 }
 
-                // init
-
-                // Variable* tmp = var;
-                // stripWrapperExpressions(&var);
-                stripWrapperExpressions(var);
-                Variable* tmp = var;
-
-                if (!(tmp->expression)) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_ERROR));
-                    return Err::UNEXPECTED_SYMBOL;
+                if (arr->length && (arr->length->cvalue.hasValue || arr->length->expression)) {
+                    const int dt = evaluateDataTypes(arr->length);
+                    if (dt > 0 && dt <= DT_UINT_64) {
+                        continue;
+                    } else {
+                        Logger::log(Logger::ERROR, "TODO error: array length has to be int!");
+                        return Err::INVALID_DATA_TYPE;
+                    }
                 }
 
                 int len;
                 int err;
                 Variable lenVar;
 
-                err = evaluateArrayLength(tmp, &lenVar);
+                stripWrapperExpressions(var);
+
+                err = evaluateArrayLength(var, &lenVar);
                 if (err < 0) return err;
 
-                translatorC.printVariable(stdout, 0, &lenVar, NULL);
-                printf("\n");
+                //translatorC.printVariable(stdout, 0, &lenVar, NULL);
+                //printf("\n");
 
                 len = lenVar.cvalue.i64;
 
@@ -381,6 +382,7 @@ namespace Validator {
                     // TODO : ALLOC case for now
                     
                     Variable* tmp = var->def->var;
+                    const Value tmpValue = tmp->cvalue;
                     const DataTypeEnum tmpDtype = tmp->cvalue.dtypeEnum; 
 
                     err = evaluateDataTypes(var, NULL, tmp->cvalue.dtypeEnum, (TypeDefinition*) tmp->dtype);
@@ -388,12 +390,12 @@ namespace Validator {
                     if (tmp->cvalue.dtypeEnum == DT_CUSTOM) {
                         validateTypeInitialization((TypeDefinition*) (tmp->dtype), (TypeInitialization*) ((WrapperExpression*) (var->expression))->operand->expression);
                     } else {
-                        if (!validateImplicitCast(var->cvalue.dtypeEnum, tmpDtype)) {
-                            Logger::log(Logger::ERROR, "TODO error : DT_MULTIPLE_TYPES check in function call, wrong dtype...");
-                            return Err::INVALID_DATA_TYPE;
-                        }
-                        tmp->cvalue.dtypeEnum = tmpDtype;
+                        const int err = validateImplicitCast(var->cvalue.any, tmpValue.any, var->cvalue.dtypeEnum, tmpValue.dtypeEnum);
+                        if (err < 0) return err;
+                        // tmp->cvalue.dtypeEnum = tmpDtype;
                     }
+
+                    tmp->cvalue = tmpValue;
 
                 } else {
                     err = evaluateDataTypes(var);
@@ -513,10 +515,34 @@ namespace Validator {
                 dtypeL = ((Slice*) lvalueEx)->arr->cvalue.arr->pointsToEnum;
             }
 
-            if (!validateImplicitCast(dtypeR, dtypeL)) { //if (((dtypeL != dtypeR) && (dtypeL >= DT_POINTER || dtypeR >= DT_POINTER)) && (dtypeL != DT_POINTER && dtypeR != DT_ARRAY)) {
-                // error : cannot cast
-                Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_TYPE_CONVERSION), varAss->loc, 1, dataTypes[dtypeL].name, dataTypes[dtypeR].name);
-                return Err::INVALID_TYPE_CONVERSION;
+            const int err = validateImplicitCast(varAss->rvar->cvalue.any, varAss->lvar->cvalue.any, dtypeR, dtypeL);
+            if (err < 0) return err;
+
+            if (dtypeR == DT_ARRAY) {
+
+                Variable lenVar;
+                const int err = evaluateArrayLength(varAss->rvar, &lenVar);
+                if (err < 0) return err;
+
+                if (!lvalueEx) continue;
+
+                if (lvalueEx->type == EXT_SLICE) {
+
+                    Slice* sex = (Slice*)(varAss->lvar->expression);
+                    if (sex->eidx->cvalue.dtypeEnum == DT_UNDEFINED) {
+                        copy(sex->eidx, &lenVar);
+                        sex->eidx->cvalue.dtypeEnum = DT_UNDEFINED;
+                    }
+
+                } else if (lvalueEx->type == EXT_BINARY) {
+
+                    BinaryExpression* bex = (BinaryExpression*) lvalueEx;
+                    if (bex->operType == OP_SUBSCRIPT && bex->operandA->cvalue.arr->length->cvalue.dtypeEnum == DT_UNDEFINED) {
+                        copy(bex->operandA->cvalue.arr->length, &lenVar);
+                        bex->operandA->cvalue.arr->length->cvalue.dtypeEnum = DT_UNDEFINED;
+                    }
+
+                }
             }
 
         }
@@ -541,12 +567,15 @@ namespace Validator {
             VariableDefinition* const varDef = SyntaxNode::initializations[i];
             Variable* var = varDef->var;
             
+            const Value value = var->cvalue;
             DataTypeEnum dtypeEnumRef = var->cvalue.dtypeEnum;
             void* dtypeRef = var->dtype;
 
             void* dtype;
             int dtypeEnum = evaluateDataTypes(var, (TypeDefinition**) (&dtype), dtypeEnumRef, (TypeDefinition*) (dtypeRef));
             if (dtypeEnum < 0) return dtypeEnum;
+
+            var->cvalue = value;
 
             // validateCustomTypeInitialization(dtype, dtypeInit);
             if (validateImplicitCast(dtype, dtypeRef, (DataTypeEnum) dtypeEnum, dtypeEnumRef) != Err::OK) {
@@ -766,8 +795,23 @@ namespace Validator {
                 evaluate(slice->bidx);
                 
                 Value ans = slice->eidx->cvalue;
-                Interpreter::applyOperator(OP_SUBTRACTION, &ans, &(slice->bidx->cvalue));
-                
+                ans.dtypeEnum = DT_INT_64;
+                const int err = Interpreter::applyOperator(OP_SUBTRACTION, &ans, &(slice->bidx->cvalue));
+                if (err < 0) {
+                    slice->len = new Variable();
+
+                    BinaryExpression* len = new BinaryExpression();
+                    len->operandA = slice->eidx;
+                    len->operandB = slice->bidx;
+                    len->operType = OP_SUBTRACTION;
+
+                    slice->len->expression = len;
+                } else {
+                    if (!slice->len) slice->len = new Variable();
+                    slice->len->cvalue = ans;
+                    slice->len->expression = NULL;
+                }
+
                 len->cvalue.hasValue = 1;
                 len->cvalue.dtypeEnum = DT_INT_64;
                 len->cvalue.i64 = ans.i64 + 1;
@@ -799,6 +843,19 @@ namespace Validator {
 
         return Err::OK;
 
+    }
+
+    // level has to be 0, if its output matters
+    int getFirstNonArrayDtype(Array* arr, const int maxLevel, int* level) {
+        
+        const int dtype = arr->pointsToEnum;
+
+        if (maxLevel > 0 && *level >= maxLevel) return dtype;
+        if (dtype != DT_ARRAY) return dtype;
+
+        if (level) *level = *level + 1;
+        return getFirstNonArrayDtype((Array*) arr->pointsTo, maxLevel, level);
+    
     }
 
     // TODO : to macro or constexpr
@@ -842,6 +899,28 @@ namespace Validator {
             }
 
             return Err::OK;
+
+        } else if (dtypeEnumRef == DT_ARRAY && dtypeEnum == DT_ARRAY) {
+            
+            Array* arrRef = (Array*) dtypeRef;
+            Array* arr = (Array*) dtype;
+
+            int levelRef = 0;
+            const DataTypeEnum arrDtypeRef = (DataTypeEnum) getFirstNonArrayDtype(arrRef, -1, &levelRef);
+
+            const int maxLevel = levelRef;
+            levelRef = 0;
+            const DataTypeEnum arrDtype = (DataTypeEnum) getFirstNonArrayDtype(arr, maxLevel, &levelRef);
+
+            return validateImplicitCast(arrDtype, arrDtypeRef);
+
+        
+        } else if (dtypeEnumRef == DT_ARRAY) {
+
+            Array* arr = (Array*) dtypeRef;
+            const DataTypeEnum arrDtype = (DataTypeEnum) getFirstNonArrayDtype(arr);
+
+            return validateImplicitCast(dtypeEnum, arrDtype);
 
         }
 
@@ -1127,6 +1206,14 @@ namespace Validator {
                         if (dtypeA != DT_ARRAY) return Err::ARRAY_EXPECTED; // TODO : log error
 
                         Array* arr = bex->operandA->cvalue.arr;
+                        
+                        if (dtypeB == DT_UNDEFINED) {
+                            // appending to array, so returning array
+                            op->cvalue.any = arr;
+                            rdtype = DT_ARRAY;
+                            break;
+                        }
+
                         if (arr->flags & IS_CMP_TIME) {
 
 
@@ -1241,12 +1328,16 @@ namespace Validator {
                 DataTypeEnum idxDtype;
 
                 idxDtype = (DataTypeEnum) evaluateDataTypes(sex->bidx);
-                if (!validateImplicitCast(idxDtype, DT_INT)) {
+                if (idxDtype == DT_UNDEFINED && !sex->bidx->expression) {
+                    sex->bidx->cvalue.dtypeEnum = DT_INT_64;
+                    sex->bidx->cvalue.hasValue = 1;
+                    sex->bidx->cvalue.i64 = 0;
+                } else if (!validateImplicitCast(idxDtype, DT_INT)) {
                     return DT_UNDEFINED;
                 }
                 
                 idxDtype = (DataTypeEnum) evaluateDataTypes(sex->eidx);
-                if (!validateImplicitCast(idxDtype, DT_INT)) {
+                if ((idxDtype != DT_UNDEFINED || sex->eidx->expression) && !validateImplicitCast(idxDtype, DT_INT)) {
                     return DT_UNDEFINED;
                 }
 
@@ -1265,7 +1356,7 @@ namespace Validator {
                 if (customDtype) {
                     *customDtype = (TypeDefinition*) ex;
                 }
-                
+
                 return DT_STRING;
 
             }

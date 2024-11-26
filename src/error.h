@@ -50,8 +50,8 @@ namespace Err {
         INVALID_NUMBER_OF_ATTRIBUTES    = -38,
         UNSUPPORTED_ESCAPE_SEQUENCE     = -39,
         DATA_TYPE_SIZE_EXCEEDED         = -40,
-        UNEXPECTED_ERROR                = -50,
-        ARRAY_SIZE_MISMATCH             = -51,
+        UNEXPECTED_ERROR                = -41,
+        ARRAY_SIZE_MISMATCH             = -42,
     };
 
     const char* const str[] = {
@@ -98,8 +98,11 @@ namespace Err {
         "Unsupported escape sequence!",
         "Data type size exceeded!",
         "Unexpected error!",
-        "Array size mismatch!"
-        
+        "Array size mismatch!",
+        "TMP1",
+        "TMP2",
+        "TMP3",
+        "TMP4"
     };
 
 }

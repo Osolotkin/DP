@@ -26,8 +26,14 @@ FILE* vFile     = NULL;
 const char* const dtypePostfix[] = {
     "VOID",
     "I32",
+    "I8",
+    "I16",
     "I32",
     "I64",
+    "U8",
+    "U16",
+    "U32",
+    "U64",
     "F32",
     "F64",
     "Char",
@@ -484,6 +490,10 @@ void c_initArray(Expression* var) {
 
 }
 
+inline void c_printArrayListLength(FILE* file, Variable* arr) {
+    fprintf(file, "%.*s_%i->len", arr->nameLen, arr->name, arr->id);
+}
+
 // returns 1 if IF_RENDERED was hit, otherwise 0
 int c_printForExpression(FILE* file, Variable* var, Variable* lvalue, int id) {
     
@@ -545,6 +555,11 @@ int c_printForExpression(FILE* file, Variable* var, Variable* lvalue, int id) {
         }
 
         case EXT_STRING_INITIALIZATION : {
+            fprintf(file, "%s[i]", var->name);
+            break;
+        }
+
+        case EXT_SLICE: {
             fprintf(file, "%s[i]", var->name);
             break;
         }
@@ -705,6 +720,34 @@ int c_printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** a
 
         }
 
+        case EXT_SLICE : {
+
+            Slice* slice = (Slice*) ex;
+
+            const int nameLen = 1 + MAX_ARRAY_ID_SIZE + 1;
+            var->name = (char*) malloc(nameLen);
+            sprintf(var->name, "a%i", var->id);
+
+            c_printDataType(file, slice->arr->cvalue.dtypeEnum, slice->arr->cvalue.any);
+            fprintf(file, "* %s=", var->name);
+            c_printVariable(file, 0, slice->arr);
+            fprintf(file, "+");
+            c_printVariable(file, 0, slice->bidx);
+            fputc(';', file);
+
+            // maybe just add length attribute to Slice
+            BinaryExpression* lenEx = new BinaryExpression();
+            lenEx->operandA = slice->eidx;
+            lenEx->operandB = slice->bidx;
+            lenEx->operType = OP_SUBTRACTION;
+
+            Variable* len = new Variable();            
+            len->expression = lenEx;
+
+            *arrLen = len;
+
+        }
+
 
     }
 
@@ -723,17 +766,24 @@ void c_printArray(FILE* file, Variable* lvalue, Variable* rvalue) {
         case EXT_SLICE : {
 
             Slice* slice = (Slice*) ex;
-            var = slice->arr;
+            var = rvalue;
+            lvalue = slice->arr;
 
-            fprintf(file, ";{int off0=""0;int len0=");
+            //fprintf(file, ";{int off0=""0;int len0=");
 
             fprintf(file, ";{int off0=");
             c_printVariable(file, 0, slice->bidx);
 
             
             fprintf(file, ";int len0=");
-            c_printVariable(file, 0, slice->eidx);
-            fputc('-', file);
+            if (slice->eidx->cvalue.dtypeEnum != DT_UNDEFINED) {
+                c_printVariable(file, 0, slice->eidx);
+                fputc('-', file);
+            } else {
+                slice->eidx->cvalue.dtypeEnum = DT_INT_64;
+                c_printVariable(file, 0, slice->eidx);
+                fputc('+', file);
+            }
             c_printVariable(file, 0, slice->bidx);
             fputc(';', file);
 
@@ -754,6 +804,43 @@ void c_printArray(FILE* file, Variable* lvalue, Variable* rvalue) {
             fputc(';', file);
             return;
         }
+
+        case EXT_FUNCTION_CALL : {
+            // alloc
+            fputc('=', file);
+            c_printFunctionCall(file, 0, (FunctionCall*) ex, lvalue);
+            fputc(';', file);
+            return;
+        }
+
+        case EXT_BINARY: {
+            
+            BinaryExpression* bex = (BinaryExpression*) lvalue->expression;
+            if (bex->operType == OP_SUBSCRIPT) {
+
+                Array* arr = bex->operandA->cvalue.arr;
+
+                fprintf(file, ";{int off0=");
+                c_printArrayListLength(file, bex->operandA);
+                fprintf(file, ";int len0=");
+                arr->length->cvalue.dtypeEnum = DT_INT_64;
+                c_printVariable(file, 0, arr->length);
+                //arr->length->cvalue.dtypeEnum = DT_UNDEFINED;
+                fputc(';', file);
+
+                const char* postfix = dtypePostfix[arr->pointsToEnum];
+                fprintf(file, "arrayListAppendAlloc%s(%.*s_%i,len0);", postfix, bex->operandA->nameLen, bex->operandA->name, bex->operandA->id);
+                //c_printVariable(file, 0, arr->length);
+                //fprintf(file, ");");
+
+                var = rvalue;
+                lvalue = bex->operandA;
+
+                break;
+            
+            }
+
+        }
     
         default:
             fprintf(file, ";{int off0=""0;int len0=");
@@ -769,10 +856,10 @@ void c_printArray(FILE* file, Variable* lvalue, Variable* rvalue) {
 
     fprintf(file, "for (int i = 0; i < len0; i++){");
     c_printVariable(file, 0, lvalue);
-    fprintf(file, "[i]=");
+    fprintf(file, "[off0+i]=");
     if (c_printForExpression(file, var, lvalue, 0)) {
         c_printVariable(file, 0, lvalue);
-        fprintf(file, "[i];");
+        fprintf(file, "[off0+i];");
     }
     fprintf(file, ";}");
 
@@ -1645,6 +1732,11 @@ void c_printFunctionCall(FILE* file, int level, FunctionCall* const node, Variab
             c_printVariable(file, level, arr->length);
 
             fprintf(file, ");");
+
+            if (var->expression) {
+                lvalue->expression = var->expression;
+                c_printArray(file, lvalue, var);
+            }
 
         } else {
 
