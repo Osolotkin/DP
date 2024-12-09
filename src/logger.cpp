@@ -16,7 +16,7 @@
 
 namespace Logger {
 
-    uint32_t verbosity = INFO | WARNING | ERROR;
+    uint32_t verbosity = HINT | INFO | WARNING | ERROR;
 
     int getEndClosure(const char ch) {
         switch (ch) {
@@ -116,6 +116,10 @@ namespace Logger {
         if (!(verbosity & type)) return;
 
         switch (type) {
+
+            case HINT : {
+                break;
+            }
 
             case INFO : {
                 printf("INFO : ");

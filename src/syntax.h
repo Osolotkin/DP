@@ -82,6 +82,7 @@ struct Translator {
     FILE* mainFile;
 
     void (*init)                        (char* const dirName);
+    void (*exit)                        ();
     void (*printScope)                  (FILE* file, int level, Scope* const node, Variable* lvalue);
     void (*printVariableDefinition)     (FILE* file, int level, VariableDefinition* const node, Variable* lvalue);
     void (*printVariableAssignment)     (FILE* file, int level, VariableAssignment* const node, Variable* lvalue);
@@ -886,6 +887,7 @@ enum DataTypeEnum : int {
 const int DATA_TYPES_COUNT = DT_UNDEFINED + 1;
 
 #define IS_INT(x) ((x) >= DT_INT && (x) <= DT_INT_64)
+#define IS_FLOAT(x) ((x) >= DT_FLOAT_32 && (x) <= DT_FLOAT_64)
 
 struct DataType : INamed {
     

@@ -7,9 +7,10 @@
 namespace Logger {
 
     enum Level {
-        INFO    = 0x1,
-        WARNING = 0x2,
-        ERROR   = 0x4
+        HINT    = 0x1,
+        INFO    = 0x2,
+        WARNING = 0x4,
+        ERROR   = 0x8
     };
 
     // better name

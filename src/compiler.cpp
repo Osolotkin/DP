@@ -18,7 +18,7 @@
 
 #define NULL 0
 
-#define runTranslator(t) {t.init(Compiler::outDir); SyntaxNode::root->print(&(t), t.mainFile, 0);}
+#define runTranslator(t) {t.init(Compiler::outDir); SyntaxNode::root->print(&(t), t.mainFile, 0); t.exit();}
 
 
 

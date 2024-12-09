@@ -201,11 +201,11 @@ void c_printDataType(FILE* file, const DataTypeEnum dtypeEnum) {
             break;
 
         case DT_FLOAT_32 :
-            fprintf(file, "float_t");
+            fprintf(file, "float");
             break;
             
         case DT_FLOAT_64 :
-            fprintf(file, "double_t");
+            fprintf(file, "double");
             break;
 
         case DT_POINTER :
@@ -423,6 +423,17 @@ void c_init(char* const dirName) {
 
     //fprintf(fFile, "#pragma once\n");
     //fprintf(fFile, "#include \"globals.h\"\n");
+
+}
+
+void c_exit() {
+
+    fclose(mFile);
+    fclose(fFile);
+    // fclose(gFile);
+    fclose(tFile);
+    fclose(vFile);
+    fclose(fdFile);
 
 }
 
@@ -1802,6 +1813,7 @@ void c_printTernaryOperator(FILE* file, int level, TernaryOperator* const node, 
 Translator translatorC {
     mFile,
     &c_init,
+    &c_exit,
     &c_printScope,
     &c_printVariableDefinition,
     &c_printVariableAssignment,

@@ -22,6 +22,10 @@ void init (char* const dirName) {
 
 }
 
+void exit() {
+
+}
+
 void printDataType(const DataTypeEnum dtypeEnum) {
 
     DataType* const dtype = dataTypes + dtypeEnum;
@@ -755,6 +759,7 @@ void printTernaryOperator(FILE* file, int level, TernaryOperator* const node, Va
 Translator translatorItselfConsole{
     NULL,
     &init,
+    &exit,
     &printScope,
     &printVariableDefinition,
     &printVariableAssignment,

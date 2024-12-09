@@ -40,7 +40,7 @@ int arrayListInsert##name(ArrayList##name* arr, const int idx, dtype value) { \
 } \
 int arrayListAppendAlloc##name(ArrayList##name* arr, const int size) { \
     const int newSize = arr->len + size; \
-    if (newSize <= arr->size) return; \
+    if (newSize <= arr->size) return 0; \
     void* tmp = realloc(arr->data, sizeof(dtype) * (newSize + newSize / 2)); \
     if (!tmp) return -1; \
     if (tmp != arr->data) arr->data = tmp; \

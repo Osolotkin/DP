@@ -52,6 +52,8 @@ namespace Err {
         DATA_TYPE_SIZE_EXCEEDED         = -40,
         UNEXPECTED_ERROR                = -41,
         ARRAY_SIZE_MISMATCH             = -42,
+        NO_MATCHING_FUNCTION_FOUND      = -43,
+        MORE_THAN_ONE_OVERLOAD_MATCH    = -44,
     };
 
     const char* const str[] = {
@@ -99,6 +101,8 @@ namespace Err {
         "Data type size exceeded!",
         "Unexpected error!",
         "Array size mismatch!",
+        "No matching function found!",
+        "More than one overload variant match the function call!",
         "TMP1",
         "TMP2",
         "TMP3",

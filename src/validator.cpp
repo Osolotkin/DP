@@ -21,6 +21,8 @@ namespace Validator {
     int evaluateDataTypes(Variable* op, TypeDefinition** customDtype = NULL, DataTypeEnum lvalueType = DT_UNDEFINED, TypeDefinition* lvalueTypeDef = NULL);
     int evaluate(Variable* op, TypeDefinition** customDtype = NULL);
 
+    int findClosestFunction(Operand* callOp, Function** outFcn);
+
     int getFirstNonArrayDtype(Array* arr, int maxLevel = -1, int* level = NULL);
 
     void stripWrapperExpressions(Variable** op);
@@ -28,6 +30,15 @@ namespace Validator {
 
     void copy(Variable* dest, Variable* src);
     int copyExpression(Variable* src, Variable** dest, int* pidx, int* nextIdx);
+
+    // TODO : better name?
+    struct FunctionScore {
+        Function* fcn;
+        int score;
+    };
+
+    std::vector<FunctionScore> fCandidates; // f as function
+
 
 
     int validate() {
@@ -149,17 +160,8 @@ namespace Validator {
 
             if (fcnCall->fcn) continue;
 
-            Scope* fcnCallScope = fcnCallOp->scope;
-            if (fcnCall->scopeNames.size() > 0) {
-                const int err = validateScopeNames(fcnCallOp->scope, fcnCall->scopeNames, (Namespace**) &fcnCallScope);
-                if (err != Err::OK) return err;
-            }
-
-            Function* fcn = Utils::find<Function>(fcnCallScope, fcnCall->name, fcnCall->nameLen, &Scope::fcns);
-            if (!fcn) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_FUNCTION), fcnCallOp->loc, fcnCall->nameLen, fcnCall->nameLen, fcnCall->name);
-                return Err::UNKNOWN_FUNCTION;
-            }
+            Function* fcn;
+            findClosestFunction(fcnCallOp, &fcn);
 
             fcnCall->fcn = fcn;
             fcnCall->outArg = new Variable();
@@ -629,6 +631,8 @@ namespace Validator {
 
         }
 
+        return Err::OK;
+
     }
 
     // len parameter is used to store expression that describes 
@@ -843,6 +847,142 @@ namespace Validator {
 
         return Err::OK;
 
+    }
+
+    enum Score {
+        FOS_IMPLICIT_CAST,
+        FOS_SAME_SUBTYPE_SIZE_DECREASE,
+        FOS_SAME_SUBTYPE_NO_SIZE_DECREASE,
+        FOS_EXACT_MATCH,
+    };
+
+    // working with global array fCandidates
+    void findCandidateFunctions(Scope* scope, FunctionCall* call) {
+
+        fCandidates.clear();
+
+        const char* const name = call->name;
+        const int nameLen = call->nameLen;
+
+        while (scope) {
+            
+            const std::vector<Function*> fcns = scope->fcns;
+
+            for (int i = 0; i < (int) fcns.size(); i++) {
+
+                if (nameLen != fcns[i]->nameLen) continue;
+
+                char* const itemName = fcns[i]->name;
+                const int itemNameLen = fcns[i]->nameLen;
+
+                int j = 0;
+                for (; j < itemNameLen; j++) {
+                    if (itemName[j] != name[j]) break;
+                }
+
+                if (j == itemNameLen) {
+                    fCandidates.push_back({fcns[i], 0});
+                }
+            
+            }
+
+            scope = scope->scope;
+
+        }
+
+    }
+
+    int findClosestFunction(Operand* callOp, Function** outFcn) {
+
+        Scope* scope = callOp->scope;
+        FunctionCall* call = (FunctionCall*) callOp->expression;
+
+        findCandidateFunctions(scope, call);
+
+        for (int j = 0; j < fCandidates.size(); j++) {
+            
+            int score = 0;
+            Function* fcn = fCandidates[j].fcn;
+            for (int i = 0; i < fcn->inArgs.size(); i++) {
+                
+                Variable* fArg = fcn->inArgs[i]->var;
+                Variable* cArg = call->inArgs[i];
+
+                const int fDtype = fArg->cvalue.dtypeEnum;
+                const int cDtype = evaluateDataTypes(cArg);
+
+                if (fDtype == cDtype) {
+                    score += FOS_EXACT_MATCH;
+                    continue;
+                }
+
+                if (IS_INT(cDtype) && IS_INT(fDtype)) {
+                    if ((cDtype - fDtype <= DT_UINT_64 - DT_INT_64)) {
+                        score += FOS_SAME_SUBTYPE_NO_SIZE_DECREASE;
+                    } else {
+                        score += FOS_SAME_SUBTYPE_SIZE_DECREASE;
+                    }
+                    continue;
+                }
+
+                if (IS_FLOAT(cDtype) && IS_FLOAT(fDtype)) {
+                    if ((cDtype - fDtype <= DT_UINT_64 - DT_INT_64)) {
+                        score += FOS_SAME_SUBTYPE_NO_SIZE_DECREASE;
+                    } else {
+                        score += FOS_SAME_SUBTYPE_SIZE_DECREASE;
+                    }
+                    continue;
+                }
+
+                if (validateImplicitCast((DataTypeEnum) cDtype, (DataTypeEnum) fDtype)) {
+                    score += FOS_IMPLICIT_CAST;
+                    continue;
+                }
+
+                FunctionScore tmp = fCandidates[fCandidates.size() - 1];
+                fCandidates[j] = tmp;
+                fCandidates.pop_back();
+                j--;
+                
+                break;
+
+            }
+            fCandidates[j].score = score;
+
+        }
+
+        int bestIdx = 0;
+        int bestScore = 0;
+        int sameScoreCnt = 0;
+        for (int i = 0; i < fCandidates.size(); i++) {
+            const int score = fCandidates[i].score;
+            if (score > bestScore) {
+                bestScore = score;
+                bestIdx = i;
+            } else if (score == bestScore) {
+                sameScoreCnt++;
+                continue;
+            }
+            sameScoreCnt = 0;
+        }
+
+        if (bestScore > 0 && sameScoreCnt == 0) {
+            *outFcn = fCandidates[bestIdx].fcn;
+            return Err::OK;
+        } else {
+
+            if (bestScore <= 0 ) {
+                Logger::log(Logger::ERROR, ERR_STR(Err::NO_MATCHING_FUNCTION_FOUND));
+                return Err::NO_MATCHING_FUNCTION_FOUND;
+            }
+
+            Logger::log(Logger::ERROR, ERR_STR(Err::MORE_THAN_ONE_OVERLOAD_MATCH), callOp->loc, 1);
+            return Err::MORE_THAN_ONE_OVERLOAD_MATCH;
+
+        }
+
+        return Err::OK;
+        
     }
 
     // level has to be 0, if its output matters

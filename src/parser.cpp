@@ -1549,7 +1549,8 @@ namespace Parser {
                         }
 
                         // LOOK AT : maybe better name for this situation, something like "unexpected char sequence"
-                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
+                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 2);
+                        Logger::log(Logger::HINT, "'=>' expected\n");
                         return Err::UNEXPECTED_SYMBOL;
 
                     }

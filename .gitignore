@@ -13,3 +13,5 @@ src/.vscode/
 !test/Structs
 
 !out/ArrayList.c
+
+!theses/main.pdf
