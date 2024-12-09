@@ -1,6 +1,6 @@
 build/
 doc/
-theses/
+theses/*
 test/*
 out/*
 src/.vscode/
