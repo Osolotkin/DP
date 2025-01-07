@@ -1,0 +1,20 @@
+
+foo(2);
+foo(2f);
+foo(2f, 2f);
+
+fcn foo(i32 x, f32 y) {
+    "i32, f32\n";
+}
+
+fcn foo(f32 x, f32 y) {
+    "f32, f32\n";
+}
+
+fcn foo(i32 x) {
+    "i32\n";
+}
+
+fcn foo(f32 x) {
+    "f32\n";    
+}

@@ -1,0 +1,34 @@
+
+// auto return and propagate error
+// 0 == NULL for no error
+
+error BooErrorSet {
+    ErrBoo1;
+    ErrBoo2;
+}
+
+error FooErrorSet {
+    BooErrorSet;
+    ErrFoo1;
+    ErrFoo2;
+}
+
+int x = foo() catch err;
+
+if (err == FooErrorSet::ErrFoo1) {
+    "Error\n";
+}
+
+fcn foo(int x) using FooErrorSet => int {
+
+    if (x == 3) return _, ErrFoo1;
+    int y = boo(x) return catch;
+    
+    return 1;
+
+}
+
+fcn boo(int x) using BooErrorSet => int {
+    if (x == 2) return ErrBoo1;
+    return 1;
+}
