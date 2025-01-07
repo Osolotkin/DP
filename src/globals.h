@@ -56,6 +56,8 @@ const char KWS_FUNCTION[]   = "fcn";
 const char KWS_ENUM[]       = "enum";
 const char KWS_TYPE_DEF[]   = "def";
 const char KWS_NAMESPACE[]  = "namespace";
+const char KWS_ERROR[]      = "error";
+const char KWS_UNION[]      = "union";
 
 const char KWS_IF[]     = "if";
 const char KWS_ELSE[]   = "else";

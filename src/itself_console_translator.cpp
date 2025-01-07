@@ -292,9 +292,9 @@ void printVariableDefinition(FILE* file, int level, VariableDefinition* const no
     printf("%s", tab);
     if (node->flags & IS_CONST) {
         printf("const ");
-        printDataType((DataType*) node->var->dtype, node->var->cvalue.dtypeEnum);
+        printDataType((DataType*) node->var->cvalue.any, node->var->cvalue.dtypeEnum);
     } else {
-        printDataType((DataType*) node->var->dtype, node->var->cvalue.dtypeEnum);
+        printDataType((DataType*) node->var->cvalue.any, node->var->cvalue.dtypeEnum);
     }
 
     printf(" %.*s = ", node->var->nameLen, node->var->name);
@@ -357,7 +357,7 @@ void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Vari
             DataType* const dtype = dataTypes + var->cvalue.dtypeEnum; 
             printf("%s\t%.*s %.*s = %i,\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
         } else {
-            TypeDefinition* const dtype = (TypeDefinition*) var->dtype; 
+            TypeDefinition* const dtype = var->cvalue.def; 
             printf("%s\t%.*s %.*s = %i,\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);    
         }
 
@@ -371,7 +371,7 @@ void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Vari
             DataType* const dtype = dataTypes + var->cvalue.dtypeEnum; 
             printf("%s\t%.*s %.*s = %i\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
         } else {
-            TypeDefinition* const dtype = (TypeDefinition*) var->dtype; 
+            TypeDefinition* const dtype = var->cvalue.def; 
             printf("%s\t%.*s %.*s = %i\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
         }
     }
@@ -742,6 +742,14 @@ void printOperator(FILE* file, int spaces, Operator* const node) {
 
 }
 
+void printUnion(FILE* file, int level, Union* const node, Variable* lvalue) {
+
+}
+
+void printErrorSet(FILE* file, int level, ErrorSet* const node, Variable* lvalue) {
+
+}
+
 void printUnaryOperator(FILE* file, int level, UnaryOperator* const node, Variable* lvalue = NULL) {
 
 }
@@ -767,6 +775,8 @@ Translator translatorItselfConsole{
     &printTypeInitialization,
     &printStringInitialization,
     &printArrayInitialization,
+    &printUnion,
+    &printErrorSet,
     &printEnumerator,
     &printVariable,
     &printFunction,

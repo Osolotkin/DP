@@ -77,40 +77,61 @@ namespace Validator {
 
             VariableDefinition* const varDef = SyntaxNode::customDataTypesReferences[i];
 
-            TypeDefinition* dtype = Utils::find<TypeDefinition>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::customDataTypes);
-            if (!dtype) {
+            void** dtype;
+            int* dtypeEnum;
+            
+            if (varDef->lastPtr) {
+                dtype = (void**) &(varDef->lastPtr->pointsTo);
+                dtypeEnum = (int*) &(varDef->lastPtr->pointsToEnum);
+            } else {
+                dtype = (void**) &(varDef->var->cvalue.dtypeEnum);
+                dtypeEnum = (int*) &(varDef->var->cvalue.any);
+            }
 
-                Enumerator* en = Utils::find<Enumerator>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::enums);
-                if (!en) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_DATA_TYPE), varDef->loc, varDef->dtypeNameLen);
-                    return Err::UNKNOWN_DATA_TYPE;
-                }
+            TypeDefinition* td = Utils::find<TypeDefinition>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::customDataTypes);
+            if (td) {
 
-                varDef->var->cvalue.dtypeEnum = en->dtype;
-                dtype = (TypeDefinition*) (dataTypes + en->dtype);
+                *dtype = (void*) td;
+                *dtypeEnum = DT_CUSTOM;
+
+                continue;
+
+            }
+
+            Enumerator* en = Utils::find<Enumerator>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::enums);
+            if (en) {
+
+                *dtype = (dataTypes + en->dtype);
+                *dtypeEnum = en->dtype;
+
+                continue;
             
             }
 
-            // if (varDef->var->expression) initializations.push_back(varDef);
+            Union* un = Utils::find<Union>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::unions);
+            if (!un) {
+                
+                *dtype = (void*) un;
+                *dtypeEnum = DT_UNION;
 
-            Pointer* ptr = NULL;
-            int tdtypeEnum = varDef->var->cvalue.dtypeEnum;
-            void* tdtype = varDef->var->dtype;
-            while (tdtypeEnum == DT_POINTER || tdtypeEnum == DT_ARRAY) {
-                ptr = (Pointer*) (tdtype);
-                tdtypeEnum = ptr->pointsToEnum;
-                tdtype = ptr->pointsTo;
+                continue;
+            
             }
 
-            if (ptr) {
-                ptr->pointsTo = dtype;
-            } else {
-                varDef->var->dtype = dtype;
-            }
+            ErrorSet* er = Utils::find<ErrorSet>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::customErrors);
+            if (er) {
 
+                *dtype = (void*) er;
+                *dtypeEnum = DT_ERROR;
+                
+                continue;
+
+            }
+            
+            Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_DATA_TYPE), varDef->loc, varDef->dtypeNameLen);
+            return Err::UNKNOWN_DATA_TYPE;
+        
         }
-
-
 
         // link variables with definitions
         // in case of scopeNames var is the last name (ex. point.x, var is then x)
@@ -123,31 +144,34 @@ namespace Validator {
             Scope* scope = var->scope;
             if (var->scopeNames.size() > 0) { 
                 Namespace* nspace;
-                const int err = validateScopeNames(var->scope, var->scopeNames, &nspace);
+                ErrorSet* eset;
+                const int err = validateScopeNames(var->scope, var->scopeNames, &nspace, &eset);
                 if (err != Err::OK) return err;
+                if (eset) {
+                    continue;
+                }
                 scope = nspace;
             }
 
             Variable* tmpVar = Utils::find<Variable>(scope, var->name, var->nameLen, &Scope::vars);
             if (!tmpVar) {
-
-                Enumerator* en = Utils::find<Enumerator>(scope, var->name, var->nameLen, &Scope::enums);
-                if (en) {
-                    var->cvalue.dtypeEnum = DT_ENUM;
-                    var->dtype = en;
+                tmpVar = Utils::find(internalVariables, internalVariablesCount, var->name, var->nameLen);
+                if (tmpVar) {
+                    copy(var, tmpVar);
                     continue;
                 }
-
-                tmpVar = Utils::find(internalVariables, internalVariablesCount, var->name, var->nameLen);
-                if (!tmpVar) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_VARIABLE), var->loc, var->nameLen, var->nameLen, var->name);
-                    return Err::UNKNOWN_VARIABLE;
-                }
-            
             }
 
-            copy(var, tmpVar);
-        
+            Enumerator* en = Utils::find<Enumerator>(scope, var->name, var->nameLen, &Scope::enums);
+            if (en) {
+                var->cvalue.dtypeEnum = DT_ENUM;
+                var->cvalue.enm = en;
+                continue;
+            }
+
+            Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_VARIABLE), var->loc, var->nameLen, var->nameLen, var->name);
+            return Err::UNKNOWN_VARIABLE;
+            
         }
 
 
@@ -161,7 +185,8 @@ namespace Validator {
             if (fcnCall->fcn) continue;
 
             Function* fcn;
-            findClosestFunction(fcnCallOp, &fcn);
+            const int err = findClosestFunction(fcnCallOp, &fcn);
+            if (err < 0) return err;
 
             fcnCall->fcn = fcn;
             fcnCall->outArg = new Variable();
@@ -171,6 +196,20 @@ namespace Validator {
             } else {
                 fcnCall->outArg->cvalue.dtypeEnum = DT_VOID;
             }
+
+        }
+
+        for (int i = 0; i < SyntaxNode::fcns.size(); i++) {
+
+            Function* fcn = SyntaxNode::fcns[i];
+            ErrorSet* errorSet = Utils::find<ErrorSet>(fcn->scope, fcn->errorSetName, fcn->errorSetNameLen, &Scope::customErrors);
+
+            if (!errorSet) {
+                Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_ERROR_SET), fcn->loc);
+                return Err::UNKNOWN_ERROR_SET;
+            }
+
+            fcn->errorSet = errorSet;
 
         }
 
@@ -387,10 +426,10 @@ namespace Validator {
                     const Value tmpValue = tmp->cvalue;
                     const DataTypeEnum tmpDtype = tmp->cvalue.dtypeEnum; 
 
-                    err = evaluateDataTypes(var, NULL, tmp->cvalue.dtypeEnum, (TypeDefinition*) tmp->dtype);
+                    err = evaluateDataTypes(var, NULL, tmp->cvalue.dtypeEnum, tmp->cvalue.def);
 
                     if (tmp->cvalue.dtypeEnum == DT_CUSTOM) {
-                        validateTypeInitialization((TypeDefinition*) (tmp->dtype), (TypeInitialization*) ((WrapperExpression*) (var->expression))->operand->expression);
+                        validateTypeInitialization(tmp->cvalue.def, (TypeInitialization*) ((WrapperExpression*) (var->expression))->operand->expression);
                     } else {
                         const int err = validateImplicitCast(var->cvalue.any, tmpValue.any, var->cvalue.dtypeEnum, tmpValue.dtypeEnum);
                         if (err < 0) return err;
@@ -571,7 +610,7 @@ namespace Validator {
             
             const Value value = var->cvalue;
             DataTypeEnum dtypeEnumRef = var->cvalue.dtypeEnum;
-            void* dtypeRef = var->dtype;
+            void* dtypeRef = var->cvalue.any;
 
             void* dtype;
             int dtypeEnum = evaluateDataTypes(var, (TypeDefinition**) (&dtype), dtypeEnumRef, (TypeDefinition*) (dtypeRef));
@@ -1080,7 +1119,7 @@ namespace Validator {
                 return Err::INVALID_DATA_TYPE;
             }
 
-            if (!var->dtype) {
+            if (!var->cvalue.any) {
                 // if no dtype, we have to find appropriate dtype and 'cash it'
 
                 TypeDefinition *dtype = Utils::find<TypeDefinition>(var->scope, var->def->dtypeName, var->def->dtypeNameLen, &Scope::customDataTypes);
@@ -1089,11 +1128,11 @@ namespace Validator {
                     return Err::UNKNOWN_DATA_TYPE;
                 }
 
-                var->dtype = dtype;
+                var->cvalue.def = dtype;
 
             }
 
-            const int err = validateTypeInitializations((TypeDefinition*) var->dtype, attribute);
+            const int err = validateTypeInitializations(var->cvalue.def, attribute);
             if (err < 0) return err;
 
         } else if (attributeDtype >= DT_MULTIPLE_TYPES) {
@@ -1281,9 +1320,9 @@ namespace Validator {
         if (!ex) {
 
             if (op->cvalue.dtypeEnum == DT_CUSTOM && customDtype) {
-                *customDtype = ((TypeDefinition*) (op->dtype));            
+                *customDtype = op->cvalue.def;            
             } else if (customDtype) {
-                *customDtype = (TypeDefinition*)(op->cvalue.any);
+                *customDtype = (TypeDefinition*) (op->cvalue.any);
             }
 
             return op->cvalue.dtypeEnum;
@@ -1575,7 +1614,7 @@ namespace Validator {
             
             const DataTypeEnum dtype = op->cvalue.dtypeEnum;
             if (dtype == DT_CUSTOM && customDtype) {
-                *customDtype = (TypeDefinition*) op->def->var->dtype;
+                *customDtype = op->def->var->cvalue.def;
             }
             
             return dtype;

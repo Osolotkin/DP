@@ -11,6 +11,7 @@ src/.vscode/
 !test/Imports
 !test/Strings
 !test/Structs
+!test/Errors
 
 !out/ArrayList.c
 

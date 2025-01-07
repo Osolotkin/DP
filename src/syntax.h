@@ -56,6 +56,7 @@ struct UnaryOperator;
 struct BinaryOperator;
 struct TernaryOperator;
 struct ImportStatement;
+struct Union;
 
 struct ScopeName;
 enum ScopeType;
@@ -90,6 +91,8 @@ struct Translator {
     void (*printTypeInitialization)     (FILE* file, int level, TypeInitialization* const node, Variable* lvalue);
     void (*printStringInitialization)   (FILE* file, int level, StringInitialization* const node, Variable* lvalue);
     void (*printArrayInitialization)    (FILE* file, int level, ArrayInitialization* const node, Variable* lvalue);
+    void (*printUnion)                  (FILE* file, int level, Union* const node, Variable* lvalue);
+    void (*printErrorSet)               (FILE* file, int level, ErrorSet* const node, Variable* lvalue);
     void (*printEnumerator)             (FILE* file, int level, Enumerator* const node, Variable* lvalue);
     void (*printVariable)               (FILE* file, int level, Variable* const node, Variable* lvalue);
     void (*printFunction)               (FILE* file, int level, Function* const node, Variable* lvalue);
@@ -150,7 +153,9 @@ enum NodeType : int {
     NT_BINARY_OPERATOR,
     NT_TERNARY_OPERATOR,
     NT_CODE_BLOCK,
-    NT_EXPRESSION_WRAPPER
+    NT_EXPRESSION_WRAPPER,
+    NT_ERROR,
+    NT_UNION,
 };
 
 
@@ -204,6 +209,8 @@ enum KeyWordType : int {
     KW_SWITCH_CASE,
     KW_SWITCH_CASE_CASE,
     KW_ALLOC,
+    KW_ERROR,
+    KW_UNION,
 };
 
 enum DirectiveKeyWord : int {
@@ -324,6 +331,7 @@ struct SyntaxNode {
 
     static std::vector<Variable*> variables;
     static std::vector<Variable*> fcnCalls;
+    static std::vector<Function*> fcns;
     static std::vector<VariableDefinition*> customDataTypesReferences;
     static std::vector<VariableAssignment*> variableAssignments;
     static std::vector<Variable*> cmpTimeVars;
@@ -334,6 +342,9 @@ struct SyntaxNode {
     static std::vector<VariableDefinition*> initializations;
     static std::vector<ReturnStatement*> returnStatements;
     static std::vector<SwitchCase*> switchCases;
+
+    static std::vector<ErrorSet*> customErrors;
+    static std::vector<Union*> unions;
 
     static std::vector<Slice*> slices;
 
@@ -361,12 +372,17 @@ enum ScopeType {
 
 struct Scope : SyntaxNode {
 
+    // the function this scope is in
+    // NULL if main
+    Function* fcn;
+
     std::vector<SyntaxNode*> children;
 
     // LOOK AT : unite?
     std::vector<Variable*> vars;
     std::vector<VariableDefinition*> defs;
     std::vector<Function*> fcns;
+    std::vector<ErrorSet*> customErrors;
     std::vector<TypeDefinition*> customDataTypes; // TODO : do we need it?
     std::vector<Enumerator*> enums; // LOOK AT : maybe unite enum under Variable interface or something
     std::vector<Namespace*> namespaces;
@@ -388,7 +404,7 @@ struct INamedVar : INamedEx {
     std::vector<INamed*> scopeNames;
 };
 
-int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace);
+int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace, ErrorSet** eset);
 /*
 struct ScopeName : INamedEx {
     // we need to know which scope name we are dealing with to adjust render as 
@@ -452,6 +468,9 @@ struct Value {
         Pointer*    ptr;
         Array*      arr;
         Slice*      slc;
+        ErrorSet*   err;
+        Enumerator* enm;
+        TypeDefinition* def;
         void*       str;
         void*       any;
     };
@@ -466,7 +485,7 @@ struct Operand : SyntaxNode {
     Value ivalue; // i as interpreter
     // TODO : isnt it part of cvalue?
     
-    void* dtype; // !!! if DT_POINTER points to Pointer struct, if DT_ARRAY points to Array struct, if DT_CUSTOM points to TypeDefinition otherwise points to DataType !!!
+    // void* dtype; // !!! if DT_POINTER points to Pointer struct, if DT_ARRAY points to Array struct, if DT_CUSTOM points to TypeDefinition otherwise points to DataType !!!
 
     std::vector<Value> istack;
     // std::vector<ScopeName*> scopeNames;
@@ -580,6 +599,9 @@ struct VariableDefinition : SyntaxNode {
     char* dtypeName;
     int dtypeNameLen;
     
+    // if we have Pointer like definition as for example Foo****
+    // then lastPtr points to the Foo*
+    Pointer* lastPtr;
     // DataTypeEnum dtypeEnum;
     // TypeDefinition* dtype;
 
@@ -635,6 +657,10 @@ struct Function : SyntaxNode, INamedEx {
     
     int icnt = 0; // counter of function usage by interpreter
     int istackIdx = 0; // 0 is neutral value, no additional stack is used, so indexing is from 1
+    
+    char* errorSetName;
+    int errorSetNameLen;
+    ErrorSet* errorSet;
     /*
     char* tagStr;
     int tagLen;
@@ -879,6 +905,8 @@ enum DataTypeEnum : int {
     DT_SLICE,
     DT_MULTIPLE_TYPES,
     DT_CUSTOM,
+    DT_UNION,
+    DT_ERROR,
     DT_MEMBER, // dont know about this one, represents the right side of member reference operator 'point . x'
     DT_ENUM,
     DT_UNDEFINED
@@ -937,6 +965,24 @@ struct TypeDefinition : DataType, SyntaxNode {
     Function* subscript;
 
     TypeDefinition() : SyntaxNode(NT_TYPE_DEFINITION) {};
+    virtual void print(Translator* const translator, FILE* file, int level);
+
+};
+
+struct Union : SyntaxNode, INamedEx {
+
+    std::vector<Variable*> vars;
+
+    Union() : SyntaxNode(NT_UNION) {};
+    virtual void print(Translator* const translator, FILE* file, int level);
+
+};
+
+struct ErrorSet : SyntaxNode, INamedEx {
+
+    std::vector<Variable*> vars;
+
+    ErrorSet() : SyntaxNode(NT_ERROR) {};
     virtual void print(Translator* const translator, FILE* file, int level);
 
 };

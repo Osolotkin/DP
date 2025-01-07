@@ -54,6 +54,8 @@ namespace Err {
         ARRAY_SIZE_MISMATCH             = -42,
         NO_MATCHING_FUNCTION_FOUND      = -43,
         MORE_THAN_ONE_OVERLOAD_MATCH    = -44,
+        UNEXPECTED_RVALUE               = -45,
+        UNKNOWN_ERROR_SET               = -46,
     };
 
     const char* const str[] = {
@@ -103,8 +105,8 @@ namespace Err {
         "Array size mismatch!",
         "No matching function found!",
         "More than one overload variant match the function call!",
-        "TMP1",
-        "TMP2",
+        "Unexpected rvalue!",
+        "Unknown error set!",
         "TMP3",
         "TMP4"
     };
