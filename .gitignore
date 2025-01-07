@@ -4,6 +4,7 @@ theses/*
 test/*
 out/*
 src/.vscode/
+tmp/*
 
 !test/Arrays
 !test/CompileTime
