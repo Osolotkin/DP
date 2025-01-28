@@ -1,0 +1,665 @@
+<html lang="en"><head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Language Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&amp;display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --background: #131010;
+            --foreground: #FFF0DC;
+            --title: #F0BB78;
+        }
+        body {
+            color: var(--foreground);
+            background-color: var(--background);
+            font-family: "Roboto", serif;
+            margin: 0;
+            padding: 0;
+        }
+        main {
+            max-width: 50em;
+            padding: 1em;
+        }
+        h1, h2, h3 {
+            color: var(--title);
+        }
+    </style>
+
+</head>
+<body>
+
+    <main>
+
+        <section>
+            <h2>Introduction</h2>
+            <p>This document introduces the basic syntax and semantics of the language. It not goes into details behind reasons of decisions, but rather focuses on how to use the language.</p>
+            <p>The complete EBNF grammar can be found at the end of this document.</p>
+        </section>
+        
+        <section>
+            <h2>Hello world</h2>
+            <p>There is no main function in the language. The entry point of the program is the beggining of the file that is given to the compiler.</p>
+            <p>Therefore, the hello world program is as simple as it can be.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#E7EE98">                "Hello, world!"</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>The print function is directly string literal itself and behaves as printf from C. So, the following code should output the same string.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#E7EE98">                "Hello, %s!" "world"</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>To build such program, that is stored in file 'hello.txt', the following command can be used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                compiler</span><span style="color:#F6F6F4"> hello.</span><span style="color:#97E1F1;font-style:italic">txt</span><span style="color:#F6F6F4"> app.exe</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>This creates executable 'app.exe'. To compile and instantly run the program, the following command can be used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                compiler</span><span style="color:#97E1F1;font-style:italic"> run</span><span style="color:#F6F6F4"> hello.</span><span style="color:#97E1F1;font-style:italic">txt</span><span style="color:#F6F6F4"> app.exe</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>To compile program to C code option -ol (as output lang) is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F6F6F4">                compiler -</span><span style="color:#97E1F1;font-style:italic">ol</span><span style="color:#97E1F1;font-style:italic"> c</span><span style="color:#F6F6F4"> hello.txt</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+        
+        <section>
+            <h2>Character set</h2>
+            <p>Basic source caracter set is extened ASCII. Exeption are string literals, they can use UTF-8.</p>
+        </section>
+
+        <section>
+            <h2>Comments</h2>
+            <p>Commented code is ignored by compiler. There are two ways to comment code. In-line using // symbol</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // This is a single line comment</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>or multi-line using pair of /{ and /} symbols.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                /{</span></span>
+<span class="line"><span style="color:#7B7F8B">                    This </span></span>
+<span class="line"><span style="color:#7B7F8B">                    is </span></span>
+<span class="line"><span style="color:#7B7F8B">                    multi-line </span></span>
+<span class="line"><span style="color:#7B7F8B">                    comment.</span></span>
+<span class="line"><span style="color:#7B7F8B">                /}</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p class="note">multi-line comments can be inserted in each other.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                /{</span></span>
+<span class="line"><span style="color:#7B7F8B">                    This /{</span></span>
+<span class="line"><span style="color:#7B7F8B">                    is </span></span>
+<span class="line"><span style="color:#7B7F8B">                    \}/{ valid /}/{</span></span>
+<span class="line"><span style="color:#7B7F8B">                    multi-line</span></span>
+<span class="line"><span style="color:#7B7F8B">                    comment.</span></span>
+<span class="line"><span style="color:#7B7F8B">                    /}</span></span>
+<span class="line"><span style="color:#7B7F8B">                /}</span></span>
+<span class="line"><span style="color:#7B7F8B">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Keywords</h2>
+            <p>These are keywords that are reserved and cannot be used as identifiers.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                embed</span><span style="color:#F6F6F4">, </span><span style="color:#F286C4">const</span><span style="color:#F6F6F4">, alloc, free, </span><span style="color:#F286C4">for</span><span style="color:#F6F6F4">, </span><span style="color:#F286C4">while</span><span style="color:#F6F6F4">, </span><span style="color:#F286C4">loop</span><span style="color:#F6F6F4">, </span><span style="color:#F286C4">fcn</span><span style="color:#F6F6F4">, </span><span style="color:#F286C4">def</span><span style="color:#F6F6F4">, import, as</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Data types</h2>
+            <h3>Default data types</h3>
+            <p>There are several default data types.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // signed integers</span></span>
+<span class="line"><span style="color:#F286C4">                i8</span><span style="color:#F286C4"> i16</span><span style="color:#F286C4"> i32</span><span style="color:#F286C4"> i64</span></span>
+<span class="line"><span style="color:#7B7F8B">                // unsigned integers</span></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F286C4"> u16</span><span style="color:#F286C4"> u32</span><span style="color:#F286C4"> u64</span></span>
+<span class="line"><span style="color:#7B7F8B">                // floating point numbers</span></span>
+<span class="line"><span style="color:#F286C4">                f32</span><span style="color:#F286C4"> f64</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>And used as follows.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                i32</span><span style="color:#F6F6F4"> x = -</span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                u32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                f64</span><span style="color:#F6F6F4"> = </span><span style="color:#BF9EEE">1.123</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Each of these data types can be implicitly casted from one to another.</p>
+            
+            <p>There are also two special data types as arrays and pointers. Each is discribed in its own section.</p>
+        </section>
+
+        <section>
+            <h2>Literals</h2>
+            <p>There are several types of literals.</p>
+            
+            <h3>Integer literals</h3>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                i32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">13</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                i32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">0xFF</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                i32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">0b1010</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>For readeability underscores can be used to separate digits.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                i32</span><span style="color:#F6F6F4"> x = 1_000_000;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <h3>Floating point literals</h3>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                f64</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">1.23</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                f64</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">1f</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <h3>Character literals</h3>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">'a'</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">'\n'</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">'\x0A'</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Character literals can include more than one character, where each character sets one byte of the value.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                u32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">'abcd'</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <h3>String literals</h3>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4">[] x = </span><span style="color:#E7EE98">"ABCD"</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4">[] x = </span><span style="color:#E7EE98">"ABCD"</span><span style="color:#F6F6F4">b;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Operators</h2>
+            <p>There are several types of operators.</p>
+
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // arithmetic</span></span>
+<span class="line"><span style="color:#F6F6F4">                + - * / % ++ --</span></span>
+<span class="line"><span style="color:#7B7F8B">                // bitwise</span></span>
+<span class="line"><span style="color:#F6F6F4">                &amp; | ^ ~ &lt;&lt; &gt;&gt;</span></span>
+<span class="line"><span style="color:#7B7F8B">                // logical</span></span>
+<span class="line"><span style="color:#F6F6F4">                &amp;&amp; || !</span></span>
+<span class="line"><span style="color:#7B7F8B">                // comparison</span></span>
+<span class="line"><span style="color:#F6F6F4">                == != &lt; &gt; &lt;= &gt;=</span></span>
+<span class="line"><span style="color:#7B7F8B">                // assignment</span></span>
+<span class="line"><span style="color:#F6F6F4">                = += -= *= /= %= &amp;= |= ^= &lt;&lt;= &gt;&gt;=</span></span>
+<span class="line"><span style="color:#7B7F8B">                // other</span></span>
+<span class="line"><span style="color:#F6F6F4">                . , : .. -&gt; ^ &amp;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+
+        </section>
+
+        <section>
+            <h2>Qualifiers</h2>
+            <p>Qualifiers are used to specify additional information about declaration. There are two avaliable qualifiers.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                embed</span><span style="color:#F286C4"> i32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                const</span><span style="color:#F286C4"> i32</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Embed qualifier is used to specify that value is known at compile time. Const qualifier is used to specify that value cannot be changed.</p>
+            <p>Any expression used in embed declaration will be evaluated at compile time. Otherwise, compile error occures.</p> 
+        </section>
+
+        <section>
+            <h2>Pointers</h2>
+            
+            <p>Pointer symbol is <code>^</code>.</p>
+
+            <p>To declare pointer of type int use</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>or with value.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr = </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+    
+            <p>To get value pointer is pointing use again <code>^</code> symbol.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F6F6F4">                val = ^ptr;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>To get address of variable use <code>&amp;</code> symbol.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr = &amp;x;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>Qualifaiers 'embed' and 'const' can also be used with pointers as with normal variables</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                embed</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">^ embeded_ptr = </span><span style="color:#BF9EEE">0xFF</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                const</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">^ const_ptr = </span><span style="color:#BF9EEE">0xFA</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>One can declare pointer to a function as follows.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                fcn</span><span style="color:#62E884"> foo(</span><span style="color:#F286C4">f32</span><span style="color:#F6F6F4"> x, </span><span style="color:#F286C4">i64</span><span style="color:#F6F6F4"> y) -&gt; </span><span style="color:#F286C4">int</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ...</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F6F6F4">                (</span><span style="color:#F286C4">fcn</span><span style="color:#F6F6F4"> (</span><span style="color:#F286C4">f32</span><span style="color:#F6F6F4">, </span><span style="color:#F286C4">i64</span><span style="color:#F6F6F4">) -&gt; </span><span style="color:#F286C4">int</span><span style="color:#F6F6F4">) pfoo = foo;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+        </section>
+
+        <section>
+            <h2>Allocations</h2>
+            <p>To allocate memory keyword <code>alloc</code> is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr = </span><span style="color:#97E1F1;font-style:italic">alloc</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <p>After keyword <code>alloc</code> size of the allocation is specified via data type. Futher more, array syntax can be used to specify multiplier of the allocation.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr = </span><span style="color:#97E1F1;font-style:italic">alloc</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">]; </span><span style="color:#7B7F8B">// size of 2 * int is allocated.</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>Futher more, allocation can be done with initialization. Symbol <code>:</code> can be used</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr = </span><span style="color:#97E1F1;font-style:italic">alloc</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4"> : </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <note>Any initialization can be used if it satisfies the data type of the allocation.</note>
+
+            <p>If data type is specified at the left side, it can be omitted at the right side.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">^ ptr = alloc : </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <note>alloc cannot be used in expressions, just as whole rvalue in assignemet, so each allocated pointer is allways assigned to a var.</note>
+            
+            <p>To free allocated memory keyword <code>free</code> is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                free</span><span style="color:#F6F6F4"> ptr;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Arrays</h2>
+
+            <p>Array is data type that allows to declare multiple 'variables' of same data type and access them by index. Therefore we view every meaningful operation with array as operation on every its field.</p>
+            
+            <p>Array of ints can be declared as follows.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // 'empty' array of length of 2</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">] array;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // filled array with 1 and 2 in written order</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F6F6F4">                </span></span>
+<span class="line"><span style="color:#7B7F8B">                // omitting length, as it can be deduced from right side</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <p>Declaring array without right side will not set fields to any value. Their value is undefined. To declare all fields with same value we can use default assignment as follows.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">] array = </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>Any qualifier can be used in declaration as in default case. Qualifier applies to each element of the array, not to the array itself.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // 1 and 2 has to be known at compile time</span></span>
+<span class="line"><span style="color:#F286C4">                embed</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">[] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#7B7F8B">                // any field of array cannot be changed after declaration</span></span>
+<span class="line"><span style="color:#F286C4">                const</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">[] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>To acess element in array one can use its index (first element has index 0), or shall we say offset...</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4"> a1 = </span><span style="color:#97E1F1;font-style:italic">array</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">];</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4"> a2 = </span><span style="color:#97E1F1;font-style:italic">array</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">];</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>To acess length of an array one can use <code>.len</code> construct.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4"> x = array.len;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F286C4">                fcn</span><span style="color:#62E884"> foo(</span><span style="color:#F286C4">embed</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4"> array[]) {</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> len = array.len;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <note>If array is used within function, length is passed as hidden spearate variable</note>
+            
+            <p>To obtain actual allocated size construct <code>.size</code> can be used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4"> x = array.size;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F286C4">                fcn</span><span style="color:#62E884"> foo(</span><span style="color:#F286C4">embed</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4"> array[]) {</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> size = array.size;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <note>Size is not stored anywhere, is rather computed on the fly, or at compile-time if possible. As it always size of datatype multiplaied by length. Allocated size and size represented by length only differ in case of array list.</note>
+            
+            <p>There are basicly three types of arrays that can be declared.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // Constant compile-time known length</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">8</span><span style="color:#F6F6F4">] array;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // Constant run-time known lengt</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#97E1F1;font-style:italic">[</span><span style="color:#F286C4">const</span><span style="color:#F6F6F4">] array = </span><span style="color:#97E1F1;font-style:italic">alloc</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">8</span><span style="color:#F6F6F4">];</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // Array list</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] array = </span><span style="color:#97E1F1;font-style:italic">alloc</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">8</span><span style="color:#F6F6F4">];</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            To concate arrays operator <code>..</code> can be used.
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] a = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] b = { </span><span style="color:#BF9EEE">3</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">4</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] c = a .. b; </span><span style="color:#7B7F8B">// { 1, 2, 3, 4 }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <h3>Strings</h3>
+            <p>There is no data type that defines strings. Arrays are used instead.</p>
+            <p>Each string literal is converted to array of ints.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4">[] str = </span><span style="color:#E7EE98">"kachow"</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>As was stated, string literals supports UTF-8. Each UTF-8 string literal is also converted to array of ints with each field of array being utf8 encoded character of a literal.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                u16</span><span style="color:#F6F6F4">[] str = </span><span style="color:#E7EE98">"кчау"</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <p>Each string literal will be decomposed into an array of int having size of int set to be able to fill the longest char in literal. Therefore, if declared left side is not capable of storing string without losing any information, comiple error occures. If it right side could be reduced warning occures.</p>
+        
+            <p>To treat utf8 string just as flow of bytes symbol <code>b</code> is used as follows.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                u8</span><span style="color:#F6F6F4">[] str = </span><span style="color:#E7EE98">"кчау"</span><span style="color:#F6F6F4">b;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <h3>Slices</h3>
+            <p>Slices allow to do more advanced operations with arrays and therefore with strings.</p>
+            <p>To create slice following syntax can be used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">3</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">4</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">5</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] slice = </span><span style="color:#97E1F1;font-style:italic">array</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> : </span><span style="color:#BF9EEE">3</span><span style="color:#F6F6F4">]; </span><span style="color:#7B7F8B">// { 2, 3, 4 }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Slice follows the same interface as array, but its rather a view on array. Therefore, any change in slice is reflected in array and vice versa.</p>
+            <p>Slice is in the end just a pointer to array with additional information about its length and offset. Which as in case of array are compted at compile-time if possible.</p>
+
+            <p>Slices also can be used on left side of assignment to assign only specific part of array.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">3</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">4</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">5</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                array</span><span style="color:#F6F6F4">[</span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> : </span><span style="color:#BF9EEE">3</span><span style="color:#F6F6F4">] = { </span><span style="color:#BF9EEE">6</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">7</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        
+        </section>
+
+        <section>
+            <h2>Loops</h2>
+            <p>There are three types of loops. For, while and loop loops.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4">[] array = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">3</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">4</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">5</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F286C4">                for</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4"> i = </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">; i &lt; </span><span style="color:#BF9EEE">10</span><span style="color:#F6F6F4">; i++ {</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                    array[</span><span style="color:#F6F6F4">i];</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F286C4">                while</span><span style="color:#F6F6F4"> i &lt; </span><span style="color:#BF9EEE">10</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                    array[</span><span style="color:#F6F6F4">i];</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F286C4">                loop</span><span style="color:#97E1F1;font-style:italic"> array</span><span style="color:#F286C4"> using</span><span style="color:#F286C4"> int</span><span style="color:#F6F6F4"> i {</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                    array[</span><span style="color:#F6F6F4">i];</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Enums</h2>
+            <p>Enums acts like embeded variables, therefore values has to be known at compiletime, each variable with unknown value will be assigned with coresponding value in asccending order after last known value</p>
+            <p>For now only integral values are considered (other will be casted), may be changed.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                enum</span><span style="color:#97E1F1"> EnumSampleName</span><span style="color:#F6F6F4"> : </span><span style="color:#F286C4">i32</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    VALUE_1 = </span><span style="color:#BF9EEE">9.3</span><span style="color:#F6F6F4">,</span></span>
+<span class="line"><span style="color:#F6F6F4">                    VALUE_2 = </span><span style="color:#BF9EEE">9.6</span><span style="color:#F6F6F4">,</span></span>
+<span class="line"><span style="color:#F6F6F4">                    VALUE_3,</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span>
+<span class="line"><span style="color:#F286C4">                enum</span><span style="color:#97E1F1"> EnumSampleName2</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    VALUE_1 = </span><span style="color:#BF9EEE">9</span><span style="color:#F6F6F4"> * </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">,</span></span>
+<span class="line"><span style="color:#F6F6F4">                    VALUE_2 = </span><span style="color:#BF9EEE">12</span><span style="color:#F6F6F4">,</span></span>
+<span class="line"><span style="color:#F6F6F4">                    VALUE_3</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Custom data types</h2>
+            
+            <h3>Structs</h3>
+            <p>Structs serves as data type that can hold multiple values of different types.</p>
+            <p>Keyword def is used to define struct.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                def</span><span style="color:#97E1F1"> Point</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> x;</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> y;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // or</span></span>
+<span class="line"><span style="color:#F286C4">                def</span><span style="color:#97E1F1"> struct</span><span style="color:#F6F6F4"> Point {</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> x;</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> y;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            
+            <p>To acess member operator <code>.</code> is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> pt;</span></span>
+<span class="line"><span style="color:#F6F6F4">                pt.x = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+    
+            <p>Same operator is used to defernciate pointer while acessing member.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> pt;</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ ppt;</span></span>
+<span class="line"><span style="color:#F6F6F4">                ppt.x = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>Each value can have default value to which it will be set upon creation.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                def</span><span style="color:#97E1F1"> Point</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> x = </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> y = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>To declare struct following syntax can be used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>This declares struct with default values for each field.</p>
+
+            <p>To declare struct with custom initialization following ways are avaliable.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // empty inicizliztion, all fields are unset regardless of default values</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = {};</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // ordered inicizliztion, each field is set in order of declaration</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> }; </span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // named inicizliztion, each field is set by its name</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, y: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { y: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">, x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // only x is set to 1, y is unset regardless of default value</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // all fields are set to 0</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // the same as above, ...: 0 means the rest of fields are set to 0</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { ...: </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // { 1, 0 }</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, ...: </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // using arithmetic while inicizliztion</span></span>
+<span class="line"><span style="color:#F6F6F4">                </span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> } + </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> + { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#7B7F8B">                // is equal to</span></span>
+<span class="line"><span style="color:#7B7F8B">                // p.x = 1 + 1 + 1;</span></span>
+<span class="line"><span style="color:#7B7F8B">                // p.y = 2 + 1 + 2;</span></span>
+<span class="line"><span style="color:#F6F6F4">                </span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> } + </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> + { x: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#7B7F8B">                // is equal to</span></span>
+<span class="line"><span style="color:#7B7F8B">                // p.x = 1 + 1 + 2;</span></span>
+<span class="line"><span style="color:#F6F6F4">                </span></span>
+<span class="line"><span style="color:#7B7F8B">                // only intializations of same size/same fields are allowed</span></span>
+<span class="line"><span style="color:#7B7F8B">                // following statement results in error</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> } + { y: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                // named inicizliztions cannot be combained with ordered as it would be ambiguous</span></span>
+<span class="line"><span style="color:#7B7F8B">                // following statement results in error</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4"> p = { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>All of these can be used in allocation as well.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : {};</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, y: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { y: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4">, x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { ...: </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, ...: </span><span style="color:#BF9EEE">0</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> } + </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> + { </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">, </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                Point</span><span style="color:#F6F6F4">^ p = alloc : { x: </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> } + </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4"> + { x: </span><span style="color:#BF9EEE">2</span><span style="color:#F6F6F4"> };</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <h3>Unions</h3>
+            <p>Unions serves as data type that can hold multiple values of different types, but only one at a time.</p>
+            <p>As in case of structs, keyword def is used to define union, but there is no shortcut this time.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                def</span><span style="color:#97E1F1"> union</span><span style="color:#F6F6F4"> Value {</span></span>
+<span class="line"><span style="color:#F286C4">                    i32</span><span style="color:#F6F6F4"> i;</span></span>
+<span class="line"><span style="color:#F286C4">                    f32</span><span style="color:#F6F6F4"> f;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>Unions can be used in the same way as structs. </p>
+        </section>
+
+        <section>
+            <h2>Namespaces</h2>
+            <p>Namespaces are named scopes. They can be used to group identifiers and avoid name conflicts.</p>
+            <p>To declare namespace following syntax is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                namespace</span><span style="color:#F6F6F4"> Foo {</span></span>
+<span class="line"><span style="color:#F286C4">                    int</span><span style="color:#F6F6F4"> x;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Then to acess member of namespace operator <code>::</code> is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F6F6F4">                Foo::x = </span><span style="color:#BF9EEE">1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Imports</h2>
+            <p>To import another file keyword 'import' is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                import</span><span style="color:#F6F6F4"> file_name;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>In this simple case file_name is the name of the file that is beeing imported file will be parsed first and then connected to the ast of the caller file.</p>
+            <p>It's importamnt, that it doesnt matter where in code statement is used, all connection happens before any code in calling file. Only the order of statements itself maters.</p>
+
+            <p>To imoprt file as namespace following syntax is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                import</span><span style="color:#97E1F1;font-style:italic"> file_name</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#97E1F1;font-style:italic"> namespace</span><span style="color:#F6F6F4"> Foo;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Then whole content of file file_name will be wrapped into namespace Foo</p>
+
+            <p>File can be also imported as function and scope.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                import</span><span style="color:#97E1F1;font-style:italic"> file_name</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#F286C4"> fcn</span><span style="color:#F6F6F4"> foo;</span></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                import</span><span style="color:#97E1F1;font-style:italic"> file_name</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#F6F6F4"> scope;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Then whole content of file file_name will be wrapped into function foo or scope.</p>
+
+            <p>To import only specific identifiers following syntax is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                from</span><span style="color:#97E1F1;font-style:italic"> file_name</span><span style="color:#97E1F1;font-style:italic"> import</span><span style="color:#F6F6F4"> x, </span><span style="color:#97E1F1;font-style:italic">y</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#97E1F1;font-style:italic"> namespace</span><span style="color:#F6F6F4"> Foo;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Then only x and y will be imported from file file_name and wrapped into namespace Foo.</p>
+            
+            <p>To restrict visibility of imported identifiers keyword <code>local</code> is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                import</span><span style="color:#97E1F1;font-style:italic"> file_name</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#97E1F1;font-style:italic"> local</span><span style="color:#97E1F1;font-style:italic"> namespace</span><span style="color:#F6F6F4"> Foo;</span></span>
+<span class="line"><span style="color:#F6F6F4">                form </span><span style="color:#97E1F1;font-style:italic">file_name</span><span style="color:#97E1F1;font-style:italic"> import</span><span style="color:#F6F6F4"> x, </span><span style="color:#97E1F1;font-style:italic">y</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#97E1F1;font-style:italic"> local</span><span style="color:#97E1F1;font-style:italic"> namespace</span><span style="color:#F6F6F4"> Foo;</span></span>
+<span class="line"><span style="color:#F6F6F4">                form </span><span style="color:#97E1F1;font-style:italic">file_name</span><span style="color:#97E1F1;font-style:italic"> import</span><span style="color:#F6F6F4"> x, </span><span style="color:#97E1F1;font-style:italic">y</span><span style="color:#97E1F1;font-style:italic"> as</span><span style="color:#F6F6F4"> local;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+        <section>
+            <h2>Error handling</h2>
+            <p>Errors are allways represented as 'error sets'. Error set can be defined as follows.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                error</span><span style="color:#F6F6F4"> FooErrorSet {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ERROR_1;</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ERROR_2;</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ERROR_3;</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Each filed in error set is also error set, if its not defined outside, its considered as empty error set.</p>
+            <p>Error set is viewed as namespace restricted to error sets. The same syntax is therefore used to acess error sets within.</p>
+            <p>Each error set can be identified by its name and has data error data type.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                error</span><span style="color:#F6F6F4"> err = FooErrorSet::ERROR_1;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>Each function can define which error set it will use. Keyword 'using' in function declaration is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                fcn</span><span style="color:#62E884"> foo(</span><span style="color:#F6F6F4">) </span><span style="color:#F286C4">using</span><span style="color:#F6F6F4"> FooErrorSet {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ...</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>To return error set from function following syntax is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#F286C4">                fcn</span><span style="color:#62E884"> foo(</span><span style="color:#F6F6F4">) </span><span style="color:#F286C4">using</span><span style="color:#F6F6F4"> FooErrorSet -&gt; </span><span style="color:#F286C4">int</span><span style="color:#F6F6F4"> {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ...</span></span>
+<span class="line"><span style="color:#7B7F8B">                    // returns 1, no error</span></span>
+<span class="line"><span style="color:#F286C4">                    return</span><span style="color:#BF9EEE"> 1</span><span style="color:#F6F6F4">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                    // retruns 1 and error ERROR_1</span></span>
+<span class="line"><span style="color:#F286C4">                    return</span><span style="color:#BF9EEE"> 1</span><span style="color:#F6F6F4">, ERROR_1;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#7B7F8B">                    // returns only error ERROR_1</span></span>
+<span class="line"><span style="color:#F286C4">                    return</span><span style="color:#F6F6F4"> _, ERROR_1;</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ...</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+
+            <p>To handle returned error set keyword 'catch' is used.</p>
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                error</span><span style="color:#F6F6F4"> err;</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4"> x = </span><span style="color:#62E884">foo(</span><span style="color:#F6F6F4">) </span><span style="color:#97E1F1;font-style:italic">catch</span><span style="color:#F6F6F4"> err;</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+            <p>Then returned error is catched in err variable.</p>
+
+            <p>As error set can be identified by its name, it can be used in conditional statements.</p>\
+            <pre><pre class="shiki dracula-soft" style="background-color:#282A36;color:#f6f6f4" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#97E1F1;font-style:italic">                error</span><span style="color:#F6F6F4"> err;</span></span>
+<span class="line"><span style="color:#F286C4">                int</span><span style="color:#F6F6F4"> x = </span><span style="color:#62E884">foo(</span><span style="color:#F6F6F4">) </span><span style="color:#97E1F1;font-style:italic">catch</span><span style="color:#F6F6F4"> err;</span></span>
+<span class="line"><span style="color:#F286C4">                if</span><span style="color:#F6F6F4"> err == FooErrorSet::ERROR_1 {</span></span>
+<span class="line"><span style="color:#F6F6F4">                    ...</span></span>
+<span class="line"><span style="color:#F6F6F4">                }</span></span>
+<span class="line"><span style="color:#F6F6F4">            </span></span></code></pre></pre>
+        </section>
+
+    </main>
+
+
+</body></html>
