@@ -1,0 +1,15 @@
+
+//int^ ptrA;
+//int^ ptrB = 0;
+
+//"ptrA -> %i\n" ptrA;
+//"ptrB -> %i\n" ptrB;
+
+//ptrA = ptrB;
+//"ptrA -> %i\n" ptrA;
+
+fcn (f32, i64 -> int) pfoo = foo;
+
+fcn foo(f32 x, i64 y) -> int {
+    return x * y;
+}

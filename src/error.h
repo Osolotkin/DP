@@ -56,6 +56,7 @@ namespace Err {
         MORE_THAN_ONE_OVERLOAD_MATCH    = -44,
         UNEXPECTED_RVALUE               = -45,
         UNKNOWN_ERROR_SET               = -46,
+        INVALID_RVALUE                  = -47,
     };
 
     const char* const str[] = {
@@ -107,8 +108,9 @@ namespace Err {
         "More than one overload variant match the function call!",
         "Unexpected rvalue!",
         "Unknown error set!",
-        "TMP3",
-        "TMP4"
+        "Invalid rvalue!",
+        "TMP4",
+
     };
 
 }

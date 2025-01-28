@@ -513,16 +513,12 @@ void printFunction(FILE* file, int level, Function* const node, Variable* lvalue
     
     }
 
-    // out args
-    for (int i = 0; i < ((int) node->outArgs.size()) - 1; i++) {
-        const DataType dtype = dataTypes[node->outArgs[i]];
-        printf("%s, ", dtype.name);
-    }
-    if ((int) node->outArgs.size() - 1 >= 0) {
-        const DataType dtype = dataTypes[node->outArgs[node->outArgs.size() - 1]];
-        printf("%s)\n", dtype.name);
-    } else {
+    // out arg
+    if (node->outArg.dtypeEnum == DT_VOID) {
         printf(")\n");
+    } else {
+        const DataType dtype = dataTypes[node->outArg.dtypeEnum];
+        printf("%s)\n", dtype.name);
     }
 
     // TODO : empty body crash
@@ -588,12 +584,10 @@ void printLoop(FILE* file, int level, Loop* const node, Variable* lvalue = NULL)
 
 void printReturnStatement(FILE* file, int level, ReturnStatement* const node, Variable* lvalue = NULL) {
 
-    std::vector<Variable*> vars = node->vars;
-
     printf("return ");
-    for (int i = 0; i < vars.size(); i++) {
-        vars[i]->print(&translatorItselfConsole, file, level);
-    }
+    node->var->print(&translatorItselfConsole, file, level);
+    putchar(',');
+    node->err->print(&translatorItselfConsole, file, level);
 
 }
 

@@ -1056,7 +1056,7 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
 
     inline int execReturnStatement(ReturnStatement* node) {
 
-        evaluate(node->vars[0]);
+        evaluate(node->var);
         return RR_RETURN + node->idx;
 
     }
@@ -1111,11 +1111,11 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         if (idx >= RR_RETURN) {
             ReturnStatement* const rt = (ReturnStatement*) fcn->returns[idx - RR_RETURN];
             if (stackIdx > 2) {
-                insertValue(ans, rt->vars[0]->istack[stackIdx - 2], stackIdx - 3);
+                insertValue(ans, rt->var->istack[stackIdx - 2], stackIdx - 3);
             } else if (stackIdx == 2) {
-                ans->ivalue = rt->vars[0]->istack[stackIdx - 2];
+                ans->ivalue = rt->var->istack[stackIdx - 2];
             } else {
-                ans->cvalue = rt->vars[0]->ivalue;
+                ans->cvalue = rt->var->ivalue;
             }
             // ans->dtypeEnum = rt->vars[0]->dtypeEnum;
         }

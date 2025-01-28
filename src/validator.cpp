@@ -15,6 +15,7 @@ namespace Validator {
     int validateAttributeCast(Variable* var, Variable* attribute);
     int validateTypeInitialization(TypeDefinition* dtype, TypeInitialization* dtypeInit);
     int validateTypeInitializations(TypeDefinition* dtype, Variable* var);
+    inline int validatePointerAssignment(const Value* const val);
     
     int evaluateArrayLength(Variable* var, Variable* len);
     int evaluateTypeInitialization(Variable* op, int attributesCount, TypeInitialization** tinitOut);
@@ -109,7 +110,7 @@ namespace Validator {
             }
 
             Union* un = Utils::find<Union>(varDef->scope, varDef->dtypeName, varDef->dtypeNameLen, &Scope::unions);
-            if (!un) {
+            if (un) {
                 
                 *dtype = (void*) un;
                 *dtypeEnum = DT_UNION;
@@ -154,12 +155,15 @@ namespace Validator {
             }
 
             Variable* tmpVar = Utils::find<Variable>(scope, var->name, var->nameLen, &Scope::vars);
-            if (!tmpVar) {
-                tmpVar = Utils::find(internalVariables, internalVariablesCount, var->name, var->nameLen);
-                if (tmpVar) {
-                    copy(var, tmpVar);
-                    continue;
-                }
+            if (tmpVar) {
+                copy(var, tmpVar);
+                continue;
+            }
+
+            tmpVar = Utils::find(internalVariables, internalVariablesCount, var->name, var->nameLen);
+            if (tmpVar) {
+                copy(var, tmpVar);
+                continue;
             }
 
             Enumerator* en = Utils::find<Enumerator>(scope, var->name, var->nameLen, &Scope::enums);
@@ -168,7 +172,7 @@ namespace Validator {
                 var->cvalue.enm = en;
                 continue;
             }
-
+            
             Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_VARIABLE), var->loc, var->nameLen, var->nameLen, var->name);
             return Err::UNKNOWN_VARIABLE;
             
@@ -191,11 +195,7 @@ namespace Validator {
             fcnCall->fcn = fcn;
             fcnCall->outArg = new Variable();
             fcnCall->outArg->cvalue.hasValue = 0;
-            if (fcn->outArgs.size() > 0) {
-                fcnCall->outArg->cvalue.dtypeEnum = fcn->outArgs[0];
-            } else {
-                fcnCall->outArg->cvalue.dtypeEnum = DT_VOID;
-            }
+            fcnCall->outArg->cvalue.dtypeEnum = fcn->outArg.dtypeEnum;
 
         }
 
@@ -462,30 +462,51 @@ namespace Validator {
                 return Err::UNEXPECTED_SYMBOL;
             }
 
-            int j = 0;
-            for (int i = 0; i < fc->outArgs.size(); i++) {
-                
-                if (j >= rt->vars.size()) {
-                    Logger::log(Logger::ERROR, "Not enough return arguments!", rt->loc);
-                    return Err::NOT_ENOUGH_ARGUMENTS;
-                }
+            if (fc->outArg.dtypeEnum != DT_VOID && !rt->var && !rt->err) {
+                Logger::log(Logger::ERROR, "Not enough return arguments!", rt->loc); // TODO : better error message
+                return Err::NOT_ENOUGH_ARGUMENTS;
+            }
 
-                Variable* var = rt->vars[j];
-                const int rtType = evaluateDataTypes(var);
+            if (fc->outArg.dtypeEnum == DT_VOID && rt->var) {
+                Logger::log(Logger::ERROR, "Too many return arguments!", rt->loc); // TODO : better error message
+                return Err::TOO_MANY_ARGUMENTS;
+            }
+
+            if (rt->var) {
+
+                const int rtType = evaluateDataTypes(rt->var);
                 if (rtType < 0) return rtType;
 
-                if (!validateImplicitCast((DataTypeEnum) rtType, fc->outArgs[i])) {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_TYPE_CONVERSION), rt->loc, 1, (dataTypes + rtType)->name, (dataTypes + fc->outArgs[i])->name);
+                const int err = validateImplicitCast(rt->var->cvalue.any, fc->outArg.any, (DataTypeEnum) rtType, fc->outArg.dtypeEnum);
+                if (err < 0) {
+                    if (fc->outArg.dtypeEnum == DT_POINTER) {
+                        const int err = validatePointerAssignment(&(rt->var->cvalue));
+                        if (err < 0) return err;
+                    }
+                        return err;
+                }
+                /*
+                if (!validateImplicitCast((DataTypeEnum) rtType, fc->outArg)) {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_TYPE_CONVERSION), rt->loc, 1, (dataTypes + rtType)->name, (dataTypes + fc->outArg)->name);
                     return Err::INVALID_TYPE_CONVERSION;
                 }
-
-                j++;
+                */
             
             }
 
-            if (j < rt->vars.size()) {
-                Logger::log(Logger::ERROR, "More than enough return arguments, slow down!", rt->loc);
-                return Err::TOO_MANY_ARGUMENTS;
+            if (fc->errorSet && rt->err) {
+                
+                Namespace* nspace;
+                ErrorSet* eset;
+
+                const int err = validateScopeNames(fc->scope, rt->err->scopeNames, &nspace, &eset);
+                if (!err) return err;
+
+                if (!err) {
+                    Logger::log(Logger::ERROR, "Expected error set, pure namespace given!", rt->loc);
+                    return Err::UNKNOWN_ERROR_SET;
+                }
+            
             }
         
         }
@@ -557,7 +578,13 @@ namespace Validator {
             }
 
             const int err = validateImplicitCast(varAss->rvar->cvalue.any, varAss->lvar->cvalue.any, dtypeR, dtypeL);
-            if (err < 0) return err;
+            if (err < 0) {
+                if (dtypeL == DT_POINTER) {
+                    const int err = validatePointerAssignment(&(varAss->rvar->cvalue));
+                    if (err < 0) return err;
+                }
+                return err;
+            }
 
             if (dtypeR == DT_ARRAY) {
 
@@ -619,10 +646,23 @@ namespace Validator {
             var->cvalue = value;
 
             // validateCustomTypeInitialization(dtype, dtypeInit);
+            const int err = validateImplicitCast(dtype, dtypeRef, (DataTypeEnum) dtypeEnum, dtypeEnumRef);
+            if (err < 0) {
+                if (dtypeEnumRef == DT_POINTER) {
+                    stripWrapperExpressions(&var);
+                    const int err = validatePointerAssignment(&(var->cvalue));
+                    if (err < 0) return err;
+                } else {
+                    return err;
+                }
+            }
+            /*
             if (validateImplicitCast(dtype, dtypeRef, (DataTypeEnum) dtypeEnum, dtypeEnumRef) != Err::OK) {
                 Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_DATA_TYPE), varDef->loc, 0);
                 return Err::INVALID_DATA_TYPE;
             }
+            */
+
 
             // if (!validateImplicitCast((DataTypeEnum) dtype, dtEnum)) {
                 // Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_DATA_TYPE), varDef->loc, 0);
@@ -1278,6 +1318,12 @@ namespace Validator {
 
     }
 
+    inline int validatePointerAssignment(const Value* const val) {
+        if (val->hasValue && val->u64 == 0) return Err::OK;
+        Logger::log(Logger::ERROR, "Only 0 could be assigned to a pointer variable!");
+        return Err::INVALID_RVALUE;
+    }
+
 
 
     int evaluateTypeInitialization(Variable* op, int attributesCount, TypeInitialization** tinitOut) {
@@ -1320,7 +1366,7 @@ namespace Validator {
         if (!ex) {
 
             if (op->cvalue.dtypeEnum == DT_CUSTOM && customDtype) {
-                *customDtype = op->cvalue.def;            
+                *customDtype = op->cvalue.def;
             } else if (customDtype) {
                 *customDtype = (TypeDefinition*) (op->cvalue.any);
             }
@@ -1382,24 +1428,38 @@ namespace Validator {
 
                     case OP_SUBSCRIPT: {
 
-                        if (dtypeA != DT_ARRAY) return Err::ARRAY_EXPECTED; // TODO : log error
+                        if (dtypeA == DT_ARRAY) {
 
-                        Array* arr = bex->operandA->cvalue.arr;
+                            Array* arr = bex->operandA->cvalue.arr;
+
+                            if (dtypeB == DT_UNDEFINED) {
+                                // appending to array, so returning array
+                                op->cvalue.any = arr;
+                                rdtype = DT_ARRAY;
+                                break;
+                            }
+
+                            if (arr->flags & IS_CMP_TIME) {
+
+
+                            }
+
+                            op->cvalue.any = arr->pointsTo;
+                            rdtype = arr->pointsToEnum;
+
+                        } else if (dtypeA == DT_POINTER) {
+
+                            Pointer* ptr = bex->operandA->cvalue.ptr;
+
+                            op->cvalue.any = ptr->pointsTo;
+                            rdtype = ptr->pointsToEnum;
                         
-                        if (dtypeB == DT_UNDEFINED) {
-                            // appending to array, so returning array
-                            op->cvalue.any = arr;
-                            rdtype = DT_ARRAY;
-                            break;
+                        } else {
+
+                            Logger::log(Logger::ERROR, "Only array and pointer can be indexed!");
+                            return Err::ARRAY_EXPECTED;
+                        
                         }
-
-                        if (arr->flags & IS_CMP_TIME) {
-
-
-                        }
-
-                        op->cvalue.any = arr->pointsTo;
-                        rdtype = arr->pointsToEnum;
 
                         break;
                     }

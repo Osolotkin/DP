@@ -247,6 +247,10 @@ namespace Utils {
                     
                     }
 
+                    if (str[i] == EOS) {
+                        continue;
+                    }
+
                     // i++;
                     lines++;
                 

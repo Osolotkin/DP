@@ -13,6 +13,8 @@
 #include "itself_console_translator.h"
 #include "c_translator.h"
 
+#include "../lib/libtcc.h"
+
 #include <map>
 #include <string>
 
@@ -24,8 +26,9 @@
 
 char* Compiler::mainFile = NULL;
 char* Compiler::outFile = NULL;
-char* Compiler::outDir = NULL;
+char* Compiler::outDir = (char*) "./out";
 
+int Compiler::command = TRANSLATE;
 int Compiler::outLangs = 0;
 
 
@@ -42,6 +45,7 @@ int printForeignFunction(std::vector<ForeignFunction*> foreignFcn, std::vector<L
 
 int compileForeignCode(char* path);
 
+int build();
 
 
 
@@ -70,9 +74,74 @@ int Compiler::compile() {
     // TODO : make paralel
     if (outLangs & ITSELF_CONSOLE_LANG) runTranslator(translatorItselfConsole);
     if (outLangs & C_LANG) runTranslator(translatorC);
-
+    
     Logger::log(Logger::INFO, "Translation completed...\n");
+    if (Compiler::command == TRANSLATE) return 0;
 
+    err = build();
+    if (err) return err;
+
+    Logger::log(Logger::INFO, "Binary generation completed...\n");
+
+    return 0;
+
+}
+
+int build() {
+    
+    TCCState *state = tcc_new();
+    if (!state) {
+        Logger::log(Logger::ERROR, "TCC: Failed to create TCC state.\n");
+        return 1;
+    }
+
+    if (tcc_set_output_type(state, TCC_OUTPUT_EXE) < 0) {
+        Logger::log(Logger::ERROR, "TCC: Failed to set output type.\n");
+        tcc_delete(state);
+        return 1;
+    }
+    
+    if (tcc_add_library_path(state, "../tcc/lib") < 0) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add library path.\n");
+        tcc_delete(state);
+        return 1;
+    }
+
+    if (tcc_add_include_path(state, "../tcc/inc") < 0) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add library path.\n");
+        tcc_delete(state);
+        return 1;
+    }
+
+    if (
+        tcc_add_library(state, "gdi32") < 0 ||
+        tcc_add_library(state, "kernel32") < 0 ||
+        tcc_add_library(state, "user32") < 0 ||
+        tcc_add_library(state, "msvcrt") < 0 ||
+        tcc_add_library(state, "tcc1-64") < 0
+    ) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add required libraries.\n");
+        tcc_delete(state);
+        return 1;
+    }
+
+    if (
+        tcc_add_file(state, "main.c") < 0 ||
+        tcc_add_file(state, "functions.c") < 0
+    ) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add .c files.\n");
+        tcc_delete(state);
+        return 1;
+    }
+
+    if (tcc_output_file(state, Compiler::outFile) < 0) {
+        Logger::log(Logger::ERROR, "TCC: Failed to generate output executable.\n");
+        tcc_delete(state);
+        return 1;
+    }
+    
+    tcc_delete(state);
+    
     return 0;
 
 }
@@ -261,7 +330,7 @@ int printForeignFunction(std::vector<ForeignFunction*> foreignFcn, std::vector<L
 
             } else if (ch == 'o') {
 
-                std::vector<DataTypeEnum> dtypes = ff->outArgs;
+                DataTypeEnum dtypeEnum = ff->outArg.dtypeEnum;
 
                 int idx = 0;
                 Utils::skipWhiteSpaces(outArgsFormat, &idx);
@@ -276,55 +345,21 @@ int printForeignFunction(std::vector<ForeignFunction*> foreignFcn, std::vector<L
                 }
 
                 int dtypeIdx = 0;
-                while (idx < dtypes.size()) {
                     
-                    DataType* dtype = dataTypes + dtypes[idx];
+                DataType* dtype = dataTypes + dtypeEnum;
 
-                    int startIdx = 0;
-                    for (int i = 0; i < outArgsFormat.len; i++) {
+                int startIdx = 0;
+                for (int i = 0; i < outArgsFormat.len; i++) {
 
-                        char ch = outArgsFormat[i];
-                        if (ch != '%') continue;
+                    char ch = outArgsFormat[i];
+                    if (ch != '%') continue;
 
-                        fwrite(outArgsFormat.buff + startIdx, sizeof(char), (i <= 1) ? 0 : i - startIdx, file);
+                    fwrite(outArgsFormat.buff + startIdx, sizeof(char), (i <= 1) ? 0 : i - startIdx, file);
 
-                        startIdx = i + 2;
-                        i++;
-                        
-                        fwrite(dtype->name, sizeof(char), dtype->nameLen, file);
-
-                    }
-
-                    if (idx < dtypes.size() - 1) {
-                        fwrite(delimiter.buff, sizeof(char), delimiter.len, file);
-                    }
-
-                    idx++;
-
-                }
-
-                if (idx == 0) {
-
-                    KeyWord dtype = langDef->dtypeMap[DT_VOID];
-
-                    int startIdx = 0;
-                    for (int i = 0; i < outArgsFormat.len; i++) {
-
-                        char ch = outArgsFormat[i];
-                        if (ch != '%') continue;
-
-                        fwrite(outArgsFormat.buff + startIdx, sizeof(char), (i <= 1) ? 0 : i - startIdx, file);
-
-                        startIdx = i + 2;
-                        i++;
-                        
-                        fwrite(dtype.str, sizeof(char), dtype.type, file);
-
-                    }
-
-                    if (idx < dtypes.size() - 1) {
-                        fwrite(delimiter.buff, sizeof(char), delimiter.len, file);
-                    }
+                    startIdx = i + 2;
+                    i++;
+                    
+                    fwrite(dtype->name, sizeof(char), dtype->nameLen, file);
 
                 }
 

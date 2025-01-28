@@ -19,6 +19,7 @@ std::vector<ForeignFunction*> SyntaxNode::foreignFunctions;
 
 std::vector<Variable*> SyntaxNode::variables;
 std::vector<Variable*> SyntaxNode::fcnCalls;
+std::vector<Function*> SyntaxNode::fcns;
 std::vector<VariableDefinition*> SyntaxNode::customDataTypesReferences;
 std::vector<VariableAssignment*> SyntaxNode::variableAssignments;
 std::vector<Variable*> SyntaxNode::cmpTimeVars;
@@ -29,6 +30,9 @@ std::vector<Statement*> SyntaxNode::statements;
 std::vector<VariableDefinition*> SyntaxNode::initializations;
 std::vector<ReturnStatement*> SyntaxNode::returnStatements;
 std::vector<SwitchCase*> SyntaxNode::switchCases;
+
+std::vector<ErrorSet*> SyntaxNode::customErrors;
+std::vector<Union*> SyntaxNode::unions;
 
 std::vector<Slice*> SyntaxNode::slices;
 
@@ -113,6 +117,41 @@ Operator operators[] = {
         '&',
         4,
         IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_OR
+    {
+        '|',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_XOR
+    {
+        '^',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_NEGATION
+    {
+        '~',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_SHIFT_RIGHT
+    {
+        '>>',
+        4,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_SHIFT_LEFT
+    {
+        '<<',
+        4,
+        IS_BINARY | IS_TWO_CHAR
     },
 
     // OP_LESS_THAN
@@ -268,8 +307,15 @@ int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace
             
             ErrorSet* tmpEset = Utils::find<ErrorSet>(sc, nm->name, nm->nameLen, &Scope::customErrors);
             if (!tmpEset) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_NAMESPACE));
-                return Err::UNKNOWN_NAMESPACE;
+                
+                // check implicit errors
+                if (sc->fcn && sc->fcn->errorSet) {
+                    tmpEset = sc->fcn->errorSet;
+                } else {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_NAMESPACE));
+                    return Err::UNKNOWN_NAMESPACE;
+                }
+            
             }
 
             *eset = tmpEset;
@@ -439,12 +485,12 @@ Variable::Variable(Variable* var) {
 
 }
 
-Function::Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, std::vector<DataTypeEnum> outArgs, int internalIdx) : SyntaxNode(NT_FUNCTION) {
+Function::Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, Value* outArg, int internalIdx) : SyntaxNode(NT_FUNCTION) {
     this->scope = sc;
     this->name = name;
     this->nameLen = nameLen;
     this->inArgs = inArgs;
-    this->outArgs = outArgs;
+    this->outArg = *outArg;
     this->internalIdx = internalIdx;
     this->bodyScope = NULL;
 }

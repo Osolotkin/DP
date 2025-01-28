@@ -7,10 +7,17 @@ namespace Compiler {
         C_LANG              = 1 << 1,
     };
 
+    enum BuildCommands {
+        TRANSLATE,
+        BUILD,
+        RUN,
+    };
+
     extern char* mainFile;
     extern char* outFile;
     extern char* outDir;
 
+    extern int command;
     extern int outLangs;
     
     int compile();

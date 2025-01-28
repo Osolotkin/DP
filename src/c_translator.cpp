@@ -138,12 +138,12 @@ void c_printOperandValue(FILE* file, Operand* op) {
         }
 
         case DT_FLOAT_32 : {
-            fprintf(file, "%.9g", op->cvalue.f32);
+            fprintf(file, "%.9g%s", op->cvalue.f32, fmod(op->cvalue.f32, 1) == 0 ? ".f" : "f");
             break;
         }
 
         case DT_FLOAT_64 : {
-            fprintf(file, "%.17g", op->cvalue.f64);
+            fprintf(file, "%.17g", op->cvalue.f64, fmod(op->cvalue.f64, 1) == 0 ? "." : "");
             break;
         }
 
@@ -288,6 +288,28 @@ void c_printOperator(FILE* file, OperatorEnum opType) {
 
         case OP_BITWISE_AND :
             fputc('&', file);
+            break;
+
+        case OP_BITWISE_OR:
+            fputc('|', file);
+            break;
+
+        case OP_BITWISE_XOR:
+            fputc('^', file);
+            break;
+
+        case OP_BITWISE_NEGATION:
+            fputc('~', file);
+            break;
+
+        case OP_SHIFT_RIGHT:
+            fputc('>', file);
+            fputc('>', file);
+            break;
+
+        case OP_SHIFT_LEFT:
+            fputc('<', file);
+            fputc('<', file);
             break;
 
         case OP_NEGATION :
@@ -1017,7 +1039,7 @@ void c_printVariableAssignment(FILE* file, int level, VariableAssignment* const 
         fprintf(file, "[i]=");
 
 
-    } else if (node->rvar->expression->type == EXT_SLICE) {
+    } else if (node->rvar->expression && node->rvar->expression->type == EXT_SLICE) {
         
         Slice* slice = (Slice*)node->rvar->expression;
 
@@ -1063,7 +1085,7 @@ void c_printVariableAssignment(FILE* file, int level, VariableAssignment* const 
     }
 
     // meh
-    if (node->lvar->expression->type == EXT_BINARY) {
+    if (node->lvar->expression && node->lvar->expression->type == EXT_BINARY) {
 
         BinaryExpression* bex = (BinaryExpression*) node->lvar->expression;
         Variable* opA = bex->operandA;
@@ -1372,9 +1394,8 @@ void c_printVariable(FILE* file, int level, Variable* const node, Variable* lval
 
 void c_printFunctionDefinition(FILE* file, Function* const node) {
     
-    if (node->outArgs.size() > 0) c_printDataType(file, node->outArgs[0]);
-    else fprintf(file, "void");
-
+    c_printDataType(file, node->outArg.dtypeEnum);
+    
     fprintf(file, " %.*s_%i(", node->nameLen, node->name, node->id);
 
     for (int i = 0; i < ((int) node->inArgs.size()) - 1; i++) {
@@ -1544,10 +1565,8 @@ void c_printReturnStatement(FILE* file, int level, ReturnStatement* const node, 
 
     fprintf(file, "return ");
     
-    if (node->vars.size() > 0) {
-        node->vars[0]->print(&translatorC, file, level);
-    }
-
+    node->var->print(&translatorC, file, level);
+    
     fputc(';', file);
 
 }

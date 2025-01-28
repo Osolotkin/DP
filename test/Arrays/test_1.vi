@@ -27,7 +27,7 @@ int[2] arr2;
 arr2[0] = 3;
 arr2[1] = 4;
 
-// one can reasign array variable
+// one can reassign array variable
 arr = arr2;
 "arr: [%i, %i]\n" arr[0], arr[1];
 
@@ -35,7 +35,7 @@ arr = arr2;
 arr = ptr;
 "arr: [%i, %i]\n" arr[0], arr[1];
 
-// futhermore
+// further more
 int[4] arr3;
 arr3[0] = 5;
 arr3[1] = 6;

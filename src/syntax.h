@@ -35,6 +35,7 @@ struct SwitchCase;
 struct WhileLoop;
 struct ForLoop;
 struct Loop;
+struct ErrorSet;
 struct ReturnStatement;
 struct ContinueStatement;
 struct BreakStatement;
@@ -57,6 +58,7 @@ struct BinaryOperator;
 struct TernaryOperator;
 struct ImportStatement;
 struct Union;
+struct FunctionPrototype;
 
 struct ScopeName;
 enum ScopeType;
@@ -245,6 +247,11 @@ enum OperatorEnum {
     OP_GET_ADDRESS,
     OP_GET_VALUE,
     OP_BITWISE_AND,
+    OP_BITWISE_OR,
+    OP_BITWISE_XOR,
+    OP_BITWISE_NEGATION,
+    OP_SHIFT_RIGHT,
+    OP_SHIFT_LEFT,
     OP_EQUAL,
     OP_NOT_EQUAL,
     OP_LESS_THAN,
@@ -382,6 +389,7 @@ struct Scope : SyntaxNode {
     std::vector<Variable*> vars;
     std::vector<VariableDefinition*> defs;
     std::vector<Function*> fcns;
+    std::vector<Union*> unions;
     std::vector<ErrorSet*> customErrors;
     std::vector<TypeDefinition*> customDataTypes; // TODO : do we need it?
     std::vector<Enumerator*> enums; // LOOK AT : maybe unite enum under Variable interface or something
@@ -471,6 +479,7 @@ struct Value {
         ErrorSet*   err;
         Enumerator* enm;
         TypeDefinition* def;
+        FunctionPrototype* fcn;
         void*       str;
         void*       any;
     };
@@ -648,7 +657,8 @@ struct Variable : INamedVar, Operand {
 struct Function : SyntaxNode, INamedEx {
     
     std::vector<VariableDefinition*> inArgs;
-    std::vector<DataTypeEnum> outArgs; // TODO : !!!!
+    Value outArg;
+    //std::vector<DataTypeEnum> outArgs; // TODO : !!!!
     std::vector<ReturnStatement*> returns;
 
     Scope* bodyScope;
@@ -670,7 +680,7 @@ struct Function : SyntaxNode, INamedEx {
     */
 
     Function() : SyntaxNode(NT_FUNCTION) {};
-    Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, std::vector<DataTypeEnum> outArgs, int internalIdx);
+    Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, Value* outArg, int internalIdx);
     virtual void print(Translator* const translator, FILE* file, int level);
 
 };
@@ -757,7 +767,9 @@ struct Loop : SyntaxNode {
 struct ReturnStatement : SyntaxNode {
 
     Function* fcn;
-    std::vector<Variable*> vars;
+    Variable* var;
+    Variable* err;
+    // std::vector<Variable*> vars;
 
     int idx; // indexes itself in Function.returns
 
@@ -909,6 +921,7 @@ enum DataTypeEnum : int {
     DT_ERROR,
     DT_MEMBER, // dont know about this one, represents the right side of member reference operator 'point . x'
     DT_ENUM,
+    DT_FUNCTION, // FunctionPrototype
     DT_UNDEFINED
 };
 
@@ -1012,6 +1025,12 @@ struct Slice : Expression {
     void print(Translator* const translator, FILE* file, int level);
 
 };
+
+struct FunctionPrototype {
+    std::vector<VariableDefinition*> inArgs;
+    VariableDefinition* outArg;
+};
+
 
 
 

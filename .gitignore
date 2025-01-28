@@ -6,7 +6,13 @@ out/*
 src/.vscode/
 tmp/*
 
+!doc/doc.html
+
 !test/Arrays
+!test/Comments
+!test/Literals
+!test/Operators
+!test/Pointers
 !test/CompileTime
 !test/HelloWorld
 !test/Imports
