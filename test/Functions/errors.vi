@@ -21,14 +21,14 @@ if (err == FooErrorSet::ErrFoo1) {
 
 fcn foo(int x) using FooErrorSet => int {
 
-    if (x == 3) return _, ErrFoo1;
-    int y = boo(x) return catch;
+    if x == 3 : return _, ErrFoo1;
+    int y = boo(x) : return catch;
     
     return 1;
 
 }
 
 fcn boo(int x) using BooErrorSet => int {
-    if (x == 2) return ErrBoo1;
+    if x == 2 : return ErrBoo1;
     return 1;
 }

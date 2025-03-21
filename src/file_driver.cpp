@@ -1,4 +1,4 @@
-#pragma once
+// #pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,11 +14,11 @@ namespace FileDriver {
     #define WINDOWS 1
 
     // 0 on success
-    #ifdef POSIX == 1
+    #ifdef POSIX
         int newdir(char* const path) {
             mkdir(path, 0777);
         }
-    #elif WINDOWS == 1
+    #elif WINDOWS
         #include <direct.h>
         #include <errno.h>
         int newDir(char* const path) {

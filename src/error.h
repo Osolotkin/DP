@@ -57,6 +57,13 @@ namespace Err {
         UNEXPECTED_RVALUE               = -45,
         UNKNOWN_ERROR_SET               = -46,
         INVALID_RVALUE                  = -47,
+        SYMBOL_ALREADY_DEFINED          = -48,
+        TCC_ERROR                       = -49,
+        UNTERMINATED_COMMENT            = -50,
+        INVALID_ARRAY_LENGTH            = -51,
+        GLOBAL_SCOPE_REQUIRED           = -52,
+        INVALID_DECLARATION_ORDER       = -53,
+        CIRCULAR_IMPORT                 = -54,
     };
 
     const char* const str[] = {
@@ -95,7 +102,7 @@ namespace Err {
         "Buffer overrun!",
         "System command execution failed!",
         "Invalid lvalue!",
-        "Invalid variable name! %s",
+        "Invalid variable name! '%.*s'",
         "Not enough input arguments in function call!",
         "%s is declared in invalid place!",
         "Unknown namespace!",
@@ -109,8 +116,13 @@ namespace Err {
         "Unexpected rvalue!",
         "Unknown error set!",
         "Invalid rvalue!",
-        "TMP4",
-
+        "Symbol already defined!",
+        "TCC error!",
+        "Unterminated comment!",
+        "Invalid array length!",
+        "Declaration requires global scope!",
+        "Type definition '%.*s' includes type that is defined later! Move its definition before this one! Or may be you meant to use pointer?",
+        "Circular import detected!",
     };
 
 }

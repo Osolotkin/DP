@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Language Documentation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --background: #131010;
+            --foreground: #FFF0DC;
+            --title: #F0BB78;
+        }
+        body {
+            color: var(--foreground);
+            background-color: var(--background);
+            font-family: "Roboto", serif;
+            margin: 0;
+            padding: 0;
+        }
+        main {
+            max-width: 50em;
+            padding: 1em;
+        }
+        h1, h2, h3 {
+            color: var(--title);
+        }
+    </style>
+
+</head>
+<body>
+
+    <main>
+
+        <section>
+            <h2>Introduction</h2>
+            <p>This document introduces the basic syntax and semantics of the language. It not goes into details behind reasons of decisions, but rather focuses on how to use the language.</p>
+            <p>The complete EBNF grammar can be found at the end of this document.</p>
+        </section>
+        
+        <section>
+            <h2>Hello world</h2>
+            <p>There is no main function in the language. The entry point of the program is the beggining of the file that is given to the compiler.</p>
+            <p>Therefore, the hello world program is as simple as it can be.</p>
+            <pre><code>
+                "Hello, world!";
+            </code></pre>
+            <p>The print function is directly string literal itself and behaves as printf from C. So, the following code should output the same string.</p>
+            <pre><code>
+                "Hello, %s!" "world";
+            </code></pre>
+            <p>To build such program, that is stored in file 'hello.txt', the following command can be used.</p>
+            <pre><code>
+                compiler hello.txt app.exe
+            </code></pre>
+            <p>This creates executable 'app.exe'. To compile and instantly run the program, the following command can be used.</p>
+            <pre><code>
+                compiler run hello.txt app.exe
+            </code></pre>
+            <p>To compile program to C code option -ol (as output lang) is used.</p>
+            <pre><code>
+                compiler -ol c hello.txt
+            </code></pre>
+        </section>
+        
+        <section>
+            <h2>Character set</h2>
+            <p>Basic source caracter set is extened ASCII. Exeption are string literals, they can use UTF-8.</p>
+        </section>
+
+        <section>
+            <h2>Comments</h2>
+            <p>Commented code is ignored by compiler. There are two ways to comment code. In-line using // symbol</p>
+            <pre><code>
+                // This is a single line comment
+            </code></pre>
+            <p>or multi-line using pair of /{ and /} symbols.</p>
+            <pre><code>
+                /{
+                    This 
+                    is 
+                    multi-line 
+                    comment.
+                /}
+            </code></pre>
+            <p class = 'note'>multi-line comments can be inserted in each other.</p>
+            <pre><code>
+                /{
+                    This /{
+                    is 
+                    \}/{ valid /}/{
+                    multi-line
+                    comment.
+                    /}
+                /}
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Keywords</h2>
+            <p>These are keywords that are reserved and cannot be used as identifiers.</p>
+            <pre><code>
+                embed, const, alloc, free, for, while, loop, fcn, def, import, as
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Data types</h2>
+            <h3>Default data types</h3>
+            <p>There are several default data types.</p>
+            <pre><code>
+                // signed integers
+                i8 i16 i32 i64
+                // unsigned integers
+                u8 u16 u32 u64
+                // floating point numbers
+                f32 f64
+            </code></pre>
+            <p>And used as follows.</p>
+            <pre><code>
+                i32 x = -1;
+                u32 x = 1;
+                f64 = 1.123;
+            </code></pre>
+            <p>Each of these data types can be implicitly casted from one to another.</p>
+            
+            <p>There are also two special data types as arrays and pointers. Each is discribed in its own section.</p>
+        </section>
+
+        <section>
+            <h2>Literals</h2>
+            <p>There are several types of literals.</p>
+            
+            <h3>Integer literals</h3>
+            <pre><code>
+                i32 x = 13;
+                i32 x = 0xFF;
+                i32 x = 0b1010;
+            </code></pre>
+            <p>For readeability underscores can be used to separate digits.</p>
+            <pre><code>
+                i32 x = 1_000_000;
+            </code></pre>
+            
+            <h3>Floating point literals</h3>
+            <pre><code>
+                f64 x = 1.23;
+                f64 x = 1f;
+            </code></pre>
+            
+            <h3>Character literals</h3>
+            <pre><code>
+                u8 x = 'a';
+                u8 x = '\n';
+                u8 x = '\x0A';
+            </code></pre>
+            <p>Character literals can include more than one character, where each character sets one byte of the value.</p>
+            <pre><code>
+                u32 x = 'abcd';
+            </code></pre>
+
+            <h3>String literals</h3>
+            <pre><code>
+                u8[] x = "ABCD";
+                u8[] x = "ABCD"b;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Operators</h2>
+            <p>There are several types of operators.</p>
+
+            <pre><code>
+                // arithmetic
+                + - * / % ++ --
+                // bitwise
+                & | ^ ~ << >>
+                // logical
+                && || !
+                // comparison
+                == != < > <= >=
+                // assignment
+                = += -= *= /= %= &= |= ^= <<= >>=
+                // other
+                . , : .. -> ^ &
+            </code></pre>
+
+
+        </section>
+
+        <section>
+            <h2>Qualifiers</h2>
+            <p>Qualifiers are used to specify additional information about declaration. There are two avaliable qualifiers.</p>
+            <pre><code>
+                embed i32 x = 1;
+                const i32 x = 1;
+            </code></pre>
+            <p>Embed qualifier is used to specify that value is known at compile time. Const qualifier is used to specify that value cannot be changed.</p>
+            <p>Any expression used in embed declaration will be evaluated at compile time. Otherwise, compile error occures.</p> 
+        </section>
+
+        <section>
+            <h2>Pointers</h2>
+            
+            <p>Pointer symbol is <code>^</code>.</p>
+
+            <p>To declare pointer of type int use</p>
+            <pre><code>
+                int^ ptr;
+            </code></pre>
+            <p>or with value.</p>
+            <pre><code>
+                int^ ptr = 0;
+            </code></pre>
+    
+            <p>To get value pointer is pointing use again <code>^</code> symbol.</p>
+            <pre><code>
+                val = ^ptr;
+            </code></pre>
+
+            <p>To get address of variable use <code>&</code> symbol.</p>
+            <pre><code>
+                int^ ptr = &x;
+            </code></pre>
+
+            <p>Qualifaiers 'embed' and 'const' can also be used with pointers as with normal variables</p>
+            <pre><code>
+                embed int^ embeded_ptr = 0xFF;
+                const int^ const_ptr = 0xFA;
+            </code></pre>
+
+            <p>One can declare pointer to a function as follows.</p>
+            <pre><code>
+                fcn foo(f32 x, i64 y) -> int {
+                    ...
+                }
+
+                (fcn (f32, i64) -> int) pfoo = foo;
+            </code></pre>
+
+        </section>
+
+        <section>
+            <h2>Allocations</h2>
+            <p>To allocate memory keyword <code>alloc</code> is used.</p>
+            <pre><code>
+                int^ ptr = alloc int;
+            </code></pre>
+            
+            <p>After keyword <code>alloc</code> size of the allocation is specified via data type. Futher more, array syntax can be used to specify multiplier of the allocation.</p>
+            <pre><code>
+                int^ ptr = alloc int[2]; // size of 2 * int is allocated.
+            </code></pre>
+
+            <p>Futher more, allocation can be done with initialization. Symbol <code>:</code> can be used</p>
+            <pre><code>
+                int^ ptr = alloc int : 1;
+            </code></pre>
+            <note>Any initialization can be used if it satisfies the data type of the allocation.</note>
+
+            <p>If data type is specified at the left side, it can be omitted at the right side.</p>
+            <pre><code>
+                int^ ptr = alloc : 1;
+            </code></pre>
+
+            <note>alloc cannot be used in expressions, just as whole rvalue in assignemet, so each allocated pointer is allways assigned to a var.</note>
+            
+            <p>To free allocated memory keyword <code>free</code> is used.</p>
+            <pre><code>
+                free ptr;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Arrays</h2>
+
+            <p>Array is data type that allows to declare multiple 'variables' of same data type and access them by index. Therefore we view every meaningful operation with array as operation on every its field.</p>
+            
+            <p>Array of ints can be declared as follows.</p>
+            <pre><code>
+                // 'empty' array of length of 2
+                int[2] array;
+
+                // filled array with 1 and 2 in written order
+                int[2] array = { 1, 2 };
+                
+                // omitting length, as it can be deduced from right side
+                int[] array = { 1, 2 };
+            </code></pre>
+            
+            <p>Declaring array without right side will not set fields to any value. Their value is undefined. To declare all fields with same value we can use default assignment as follows.</p>
+            <pre><code>
+                int[2] array = 0;
+            </code></pre>
+
+            <p>Any qualifier can be used in declaration as in default case. Qualifier applies to each element of the array, not to the array itself.</p>
+            <pre><code>
+                // 1 and 2 has to be known at compile time
+                embed int[] array = { 1, 2 };
+                // any field of array cannot be changed after declaration
+                const int[] array = { 1, 2 };
+            </code></pre>
+
+            <p>To acess element in array one can use its index (first element has index 0), or shall we say offset...</p>
+            <pre><code>
+                int a1 = array[0];
+                int a2 = array[1];
+            </code></pre>
+
+            <p>To acess length of an array one can use <code>.len</code> construct.</p>
+            <pre><code>
+                int x = array.len;
+
+                fcn foo(embed int array[]) {
+                    int len = array.len;
+                }
+            </code></pre>
+            
+            <note>If array is used within function, length is passed as hidden spearate variable</note>
+            
+            <p>To obtain actual allocated size construct <code>.size</code> can be used.</p>
+            <pre><code>
+                int x = array.size;
+
+                fcn foo(embed int array[]) {
+                    int size = array.size;
+                }
+            </code></pre>
+
+            <note>Size is not stored anywhere, is rather computed on the fly, or at compile-time if possible. As it always size of datatype multiplaied by length. Allocated size and size represented by length only differ in case of array list.</note>
+            
+            <p>There are basicly three types of arrays that can be declared.</p>
+            <pre><code>
+                // Constant compile-time known length
+                int[8] array;
+
+                // Constant run-time known lengt
+                int[const] array = alloc int[8];
+
+                // Array list
+                int[] array = alloc int[8];
+            </code></pre>
+
+            To concate arrays operator <code>..</code> can be used.
+            <pre><code>
+                int[] a = { 1, 2 };
+                int[] b = { 3, 4 };
+                int[] c = a .. b; // { 1, 2, 3, 4 }
+            </code></pre>
+            
+            <h3>Strings</h3>
+            <p>There is no data type that defines strings. Arrays are used instead.</p>
+            <p>Each string literal is converted to array of ints.</p>
+            <pre><code>
+                u8[] str = "kachow";
+            </code></pre>
+
+            <p>As was stated, string literals supports UTF-8. Each UTF-8 string literal is also converted to array of ints with each field of array being utf8 encoded character of a literal.</p>
+            <pre><code>
+                u16[] str = "кчау";
+            </code></pre>
+            
+            <p>Each string literal will be decomposed into an array of int having size of int set to be able to fill the longest char in literal. Therefore, if declared left side is not capable of storing string without losing any information, comiple error occures. If it right side could be reduced warning occures.</p>
+        
+            <p>To treat utf8 string just as flow of bytes symbol <code>b</code> is used as follows.</p>
+            <pre><code>
+                u8[] str = "кчау"b;
+            </code></pre>
+
+            <h3>Slices</h3>
+            <p>Slices allow to do more advanced operations with arrays and therefore with strings.</p>
+            <p>To create slice following syntax can be used.</p>
+            <pre><code>
+                int[] array = { 1, 2, 3, 4, 5 };
+                int[] slice = array[1 : 3]; // { 2, 3, 4 }
+            </code></pre>
+            <p>Slice follows the same interface as array, but its rather a view on array. Therefore, any change in slice is reflected in array and vice versa.</p>
+            <p>Slice is in the end just a pointer to array with additional information about its length and offset. Which as in case of array are compted at compile-time if possible.</p>
+
+            <p>Slices also can be used on left side of assignment to assign only specific part of array.</p>
+            <pre><code>
+                int[] array = { 1, 2, 3, 4, 5 };
+                array[1 : 3] = { 6, 7 };
+            </code></pre>
+        
+        </section>
+
+        <section>
+            <h2>Loops</h2>
+            <p>There are three types of loops. For, while and loop loops.</p>
+            <pre><code>
+                int[] array = { 1, 2, 3, 4, 5 };
+
+                for int i = 0; i < 10; i++ {
+                    array[i];
+                }
+
+                while i < 10 {
+                    array[i];
+                }
+
+                loop array using int i {
+                    array[i];
+                }
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Enums</h2>
+            <p>Enums acts like embeded variables, therefore values has to be known at compiletime, each variable with unknown value will be assigned with coresponding value in asccending order after last known value</p>
+            <p>For now only integral values are considered (other will be casted), may be changed.</p>
+            <pre><code>
+                enum EnumSampleName : i32 {
+                    VALUE_1 = 9.3,
+                    VALUE_2 = 9.6,
+                    VALUE_3,
+                }
+            
+                enum EnumSampleName2 {
+                    VALUE_1 = 9 * 2,
+                    VALUE_2 = 12,
+                    VALUE_3
+                }
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Custom data types</h2>
+            
+            <h3>Structs</h3>
+            <p>Structs serves as data type that can hold multiple values of different types.</p>
+            <p>Keyword def is used to define struct.</p>
+            <pre><code>
+                def Point {
+                    int x;
+                    int y;
+                }
+
+                // or
+                def struct Point {
+                    int x;
+                    int y;
+                }
+            </code></pre>
+            
+            <p>To acess member operator <code>.</code> is used.</p>
+            <pre><code>
+                Point pt;
+                pt.x = 1;
+            </code></pre>
+    
+            <p>Same operator is used to defernciate pointer while acessing member.</p>
+            <pre><code>
+                Point pt;
+                Point^ ppt;
+                ppt.x = 1;
+            </code></pre>
+
+            <p>Each value can have default value to which it will be set upon creation.</p>
+            <pre><code>
+                def Point {
+                    int x = 0;
+                    int y = 1;
+                }
+            </code></pre>
+
+            <p>To declare struct following syntax can be used.</p>
+            <pre><code>
+                Point p;
+            </code></pre>
+            <p>This declares struct with default values for each field.</p>
+
+            <p>To declare struct with custom initialization following ways are avaliable.</p>
+            <pre><code>
+                // empty inicizliztion, all fields are unset regardless of default values
+                Point p = {};
+
+                // ordered inicizliztion, each field is set in order of declaration
+                Point p = { 1, 2 }; 
+
+                // named inicizliztion, each field is set by its name
+                Point p = { x: 1, y: 2 };
+                Point p = { y: 2, x: 1 };
+
+                // only x is set to 1, y is unset regardless of default value
+                Point p = { x: 1 };
+
+                // all fields are set to 0
+                Point p = 0;
+
+                // the same as above, ...: 0 means the rest of fields are set to 0
+                Point p = { ...: 0 };
+
+                // { 1, 0 }
+                Point p = { x: 1, ...: 0 };
+
+                // using arithmetic while inicizliztion
+                
+                Point p = { 1, 2 } + 1 + { 1, 2 };
+                // is equal to
+                // p.x = 1 + 1 + 1;
+                // p.y = 2 + 1 + 2;
+                
+                Point p = { x: 1 } + 1 + { x: 2 };
+                // is equal to
+                // p.x = 1 + 1 + 2;
+                
+                // only intializations of same size/same fields are allowed
+                // following statement results in error
+                Point p = { x: 1 } + { y: 2 };
+
+                // named inicizliztions cannot be combained with ordered as it would be ambiguous
+                // following statement results in error
+                Point p = { x: 1, 2 };
+            </code></pre>
+
+            <p>All of these can be used in allocation as well.</p>
+            <pre><code>
+                Point^ p = alloc : {};
+                Point^ p = alloc : { 1, 2 };
+
+                Point^ p = alloc : { x: 1, y: 2 };
+                Point^ p = alloc : { y: 2, x: 1 };
+
+                Point^ p = alloc : { x: 1 };
+
+                Point^ p = alloc : 0;
+
+                Point^ p = alloc : { ...: 0 };
+                Point^ p = alloc : { x: 1, ...: 0 };
+
+                Point^ p = alloc : { 1, 2 } + 1 + { 1, 2 };
+                Point^ p = alloc : { x: 1 } + 1 + { x: 2 };
+            </code></pre>
+
+            <h3>Unions</h3>
+            <p>Unions serves as data type that can hold multiple values of different types, but only one at a time.</p>
+            <p>As in case of structs, keyword def is used to define union, but there is no shortcut this time.</p>
+            <pre><code>
+                def union Value {
+                    i32 i;
+                    f32 f;
+                }
+            </code></pre>
+
+            <p>Unions can be used in the same way as structs. </p>
+        </section>
+
+        <section>
+            <h2>Namespaces</h2>
+            <p>Namespaces are named scopes. They can be used to group identifiers and avoid name conflicts.</p>
+            <p>To declare namespace following syntax is used.</p>
+            <pre><code>
+                namespace Foo {
+                    int x;
+                }
+            </code></pre>
+            <p>Then to acess member of namespace operator <code>::</code> is used.</p>
+            <pre><code>
+                Foo::x = 1;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Imports</h2>
+            <p>To import another file keyword 'import' is used.</p>
+            <pre><code>
+                import file_name;
+            </code></pre>
+
+            <p>In this simple case file_name is the name of the file that is beeing imported file will be parsed first and then connected to the ast of the caller file.</p>
+            <p>It's importamnt, that it doesnt matter where in code statement is used, all connection happens before any code in calling file. Only the order of statements itself maters.</p>
+
+            <p>To imoprt file as namespace following syntax is used.</p>
+            <pre><code>
+                import file_name as namespace Foo;
+            </code></pre>
+            <p>Then whole content of file file_name will be wrapped into namespace Foo</p>
+
+            <p>File can be also imported as function and scope.</p>
+            <pre><code>
+                import file_name as fcn foo;
+                import file_name as scope;
+            </code></pre>
+            <p>Then whole content of file file_name will be wrapped into function foo or scope.</p>
+
+            <p>To import only specific identifiers following syntax is used.</p>
+            <pre><code>
+                from file_name import x, y as namespace Foo;
+            </code></pre>
+            <p>Then only x and y will be imported from file file_name and wrapped into namespace Foo.</p>
+            
+            <p>To restrict visibility of imported identifiers keyword <code>local</code> is used.</p>
+            <pre><code>
+                import file_name as local namespace Foo;
+                form file_name import x, y as local namespace Foo;
+                form file_name import x, y as local;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Error handling</h2>
+            <p>Errors are allways represented as 'error sets'. Error set can be defined as follows.</p>
+            <pre><code>
+                error FooErrorSet {
+                    ERROR_1;
+                    ERROR_2;
+                    ERROR_3;
+                }
+            </code></pre>
+            <p>Each filed in error set is also error set, if its not defined outside, its considered as empty error set.</p>
+            <p>Error set is viewed as namespace restricted to error sets. The same syntax is therefore used to acess error sets within.</p>
+            <p>Each error set can be identified by its name and has data error data type.</p>
+            <pre><code>
+                error err = FooErrorSet::ERROR_1;
+            </code></pre>
+
+            <p>Each function can define which error set it will use. Keyword 'using' in function declaration is used.</p>
+            <pre><code>
+                fcn foo() using FooErrorSet {
+                    ...
+                }
+            </code></pre>
+
+            <p>To return error set from function following syntax is used.</p>
+            <pre><code>
+                fcn foo() using FooErrorSet -> int {
+                    ...
+                    // returns 1, no error
+                    return 1;
+
+                    // retruns 1 and error ERROR_1
+                    return 1, ERROR_1;
+
+                    // returns only error ERROR_1
+                    return _, ERROR_1;
+                    ...
+                }
+            </code></pre>
+
+            <p>To handle returned error set keyword 'catch' is used.</p>
+            <pre><code>
+                error err;
+                int x = foo() catch err;
+            </code></pre>
+            <p>Then returned error is catched in err variable.</p>
+
+            <p>As error set can be identified by its name, it can be used in conditional statements.</p>
+            <pre><code>
+                error err;
+                int x = foo() catch err;
+
+                if err == FooErrorSet::ERROR_1 {
+                    ...
+                }
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Interoperability</h2>
+            <p>There is a possibility to use other languages to write functions in.</p>
+            <p>Firstly compile command has to be defined. This command has to be able to compile given source code to C code.</p>
+            <p>To define compile command <code>#lang_def</code> directive is used.</p>
+            <pre><code>
+                #lang_def {
+                    tag: "Pascal";
+                    
+                }
+            </code></pre>
+            <p>Then to define function in other language following syntax is used.</p>
+            <pre><code>
+                fcn foo[C]() {
+                    fprintf(stdout, "Hello, world!\n");
+                }
+            </code></pre>
+            <p>Where in square brackets is specified tag of the body's language.</p>
+            <p>C tag is build-in and is used to write C code.</p>
+            <p>To write code that has to be 
+        </section>
+
+        <section>
+            <h2>EBNF grammar</h2>
+            
+        </section>
+    </main>
+
+</body>
+</html>

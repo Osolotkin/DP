@@ -1,4 +1,6 @@
-#pragma once
+// #pragma once
+
+#include <cstdint>
 
 #include "globals.h"
 
@@ -12,6 +14,7 @@
 
 
 Scope* SyntaxNode::root = NULL;
+INamed* SyntaxNode::dir = NULL;
 
 std::vector<LangDef*> SyntaxNode::langDefs;
 std::vector<CodeBlock*> SyntaxNode::codeBlocks;
@@ -25,11 +28,13 @@ std::vector<VariableAssignment*> SyntaxNode::variableAssignments;
 std::vector<Variable*> SyntaxNode::cmpTimeVars;
 std::vector<Variable*> SyntaxNode::arrays;
 std::vector<Loop*> SyntaxNode::loops;
+std::vector<Label*> SyntaxNode::labels;
 std::vector<Variable*> SyntaxNode::branchExpressions;
 std::vector<Statement*> SyntaxNode::statements;
 std::vector<VariableDefinition*> SyntaxNode::initializations;
 std::vector<ReturnStatement*> SyntaxNode::returnStatements;
 std::vector<SwitchCase*> SyntaxNode::switchCases;
+std::vector<VariableDefinition*> SyntaxNode::variableDefinitions;
 
 std::vector<ErrorSet*> SyntaxNode::customErrors;
 std::vector<Union*> SyntaxNode::unions;
@@ -43,230 +48,21 @@ std::vector<ImportStatement*> SyntaxNode::imports;
 std::vector<TypeDefinition*> SyntaxNode::customDataTypes;
 std::vector<Enumerator*> SyntaxNode::enumerators;
 
+std::vector<GotoStatement*> SyntaxNode::gotos;
 
+
+Variable* zero = new Variable {
+    
+};
 
 uint64_t internalFunctionUsed = 0;
 
-Operator operators[] = {
-    
-    // OP_UNARY_PLUS
-    {
-        '+',
-        4,
-        IS_UNARY | IS_ONE_CHAR
-    },
 
-    // OP_UNARY_MINUS
-    {
-        '-',
-        4,
-        IS_UNARY | IS_ONE_CHAR
-    },
-
-    // OP_ADDITION
-    {
-        '+',
-        4,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_SUBTRACTION
-    {
-        '-',
-        4,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_MULTIPLICATION
-    {
-        '*',
-        3,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_DIVISION
-    {
-        '/',
-        3,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_MODULO
-    {
-        '%',
-        3,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_GET_ADDRESS
-    {
-        '&',
-        4,
-        IS_UNARY | IS_ONE_CHAR
-    },
-
-    // OP_GET_VALUE
-    {
-        '*',
-        4,
-        IS_UNARY | IS_ONE_CHAR
-    },
-
-    // OP_BITWISE_AND
-    {
-        '&',
-        4,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_BITWISE_OR
-    {
-        '|',
-        4,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_BITWISE_XOR
-    {
-        '^',
-        4,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_BITWISE_NEGATION
-    {
-        '~',
-        4,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_SHIFT_RIGHT
-    {
-        '>>',
-        4,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_SHIFT_LEFT
-    {
-        '<<',
-        4,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_LESS_THAN
-    {
-        '<',
-        5,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_GREATER_THAN
-    {
-        '>',
-        5,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_LESS_THAN_OR_EQUAL
-    {
-        '<=',
-        5,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_GREATER_THAN_OR_EQUAL
-    {
-        '>=',
-        5,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_EQUAL
-    {
-        '=',
-        5,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_NOT_EQUAL
-    {
-        '!=',
-        5,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_BOOL_AND
-    {
-        '&&',
-        5,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_BOOL_OR
-    {
-        '||',
-        5,
-        IS_UNARY | IS_TWO_CHAR
-    },
-
-    // OP_INCREMENT
-    {
-        '++',
-        5,
-        IS_UNARY | IS_TWO_CHAR
-    },
-
-    // OP_DECREMENT
-    {
-        '--',
-        5,
-        IS_UNARY | IS_TWO_CHAR
-    },
-
-    // OP_SUBSCRIPT
-    {
-        '[',
-        2,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_MEMBER_SELECTION
-    {
-        '.',
-        1,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_DEREFERENCE_MEMBER_SELECTION
-    {
-        '.',
-        4,
-        IS_UNARY | IS_ONE_CHAR
-    },
-
-    // OP_NEGATION
-    {
-        '!',
-        4,
-        IS_UNARY | IS_ONE_CHAR
-    },
-
-    // OP_CONCATENATION
-    {
-        '..',
-        4,
-        IS_BINARY | IS_TWO_CHAR
-    }
-
-};
-
-const int OPERATORS_COUNT = sizeof(operators) / sizeof(Operator);
-
-
-
+// internal Variables such as null, true, false etc...
 Variable* internalVariables[] = {
-    VariableDefinition(new Variable(SyntaxNode::root, DT_POINTER, (char*) IVS_NULL, sizeof(IVS_NULL) - 1), IS_CMP_TIME).var
+    (new VariableDefinition(new Variable(SyntaxNode::root, { DT_POINTER, 1, 0 }, (char*)IVS_NULL, sizeof(IVS_NULL) - 1), IS_CMP_TIME))->var,
+    (new VariableDefinition(new Variable(SyntaxNode::root, { DT_INT, 1, 1 }, (char*)IVS_TRUE, sizeof(IVS_TRUE) - 1), IS_CMP_TIME))->var,
+    (new VariableDefinition(new Variable(SyntaxNode::root, { DT_INT, 1, 0 }, (char*)IVS_FALSE, sizeof(IVS_FALSE) - 1), IS_CMP_TIME))->var
 };
 
 const int internalVariablesCount = sizeof(internalVariables) / sizeof(Variable*);
@@ -292,18 +88,18 @@ Location* getLocationStamp(Location* loc) {
 //
 
 // assuming size > 0
-int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace, ErrorSet** eset) {
+int validateScopeNames(Scope* sc, std::vector<INamedLoc*> names, Namespace** nspace, ErrorSet** eset) {
 
-    Namespace* tmpNspace;
+    Namespace* tmpNspace = NULL;
     
     int i = 0;
     const int len = names.size();
 
     for (; i < len; i++) {
 
-        INamed* nm = names[i];
-        Namespace* nspace = Utils::find<Namespace>(sc, nm->name, nm->nameLen, &Scope::namespaces);
-        if (!nspace) {
+        INamedLoc* nm = names[i];
+        tmpNspace = Utils::find<Namespace>(sc, nm->name, nm->nameLen, &Scope::namespaces);
+        if (!tmpNspace) {
             
             ErrorSet* tmpEset = Utils::find<ErrorSet>(sc, nm->name, nm->nameLen, &Scope::customErrors);
             if (!tmpEset) {
@@ -312,13 +108,13 @@ int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace
                 if (sc->fcn && sc->fcn->errorSet) {
                     tmpEset = sc->fcn->errorSet;
                 } else {
-                    Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_NAMESPACE));
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_NAMESPACE), nm->loc, nm->nameLen);
                     return Err::UNKNOWN_NAMESPACE;
                 }
             
             }
 
-            *eset = tmpEset;
+            // *eset = tmpEset;
             
             // need to test that other fields align with error set
             i++;
@@ -328,7 +124,7 @@ int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace
                     Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_NAMESPACE));
                     return Err::UNKNOWN_NAMESPACE;
                 }
-                if (tmp->cvalue.dtypeEnum == DT_ERROR) {
+                if (tmp->cvalue.dtypeEnum == DT_ERROR && !(tmp->cvalue.hasValue)) {
                     tmpEset = tmp->cvalue.err;
                 } else if (i + 1 < len) {
                     Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_ERROR_SET), tmp->loc);
@@ -336,15 +132,17 @@ int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace
                 }
             }
 
+            *eset = tmpEset;
+
             break;
         
         }
         
-        sc = nspace;
+        sc = tmpNspace;
            
     }
 
-    *nspace = (Namespace*) sc;
+    *nspace = (Namespace*) tmpNspace;
     return Err::OK;
 
 }
@@ -433,6 +231,7 @@ Variable::Variable() {
     expression = NULL;
     cvalue.dtypeEnum = DT_UNDEFINED;
     cvalue.ptr = NULL;
+    type = NT_VARIABLE;
     // parentStruct = NULL;
     // attribute = NULL;
 
@@ -445,13 +244,13 @@ Variable::Variable(Location* loc) : Variable() {
     
 }
 
-Variable::Variable(Scope* loc) : Variable() {
+Variable::Variable(Scope* scope) : Variable() {
 
     this->scope = scope;
 
 }
 
-Variable::Variable(Scope* const sc, DataTypeEnum dtype) {
+Variable::Variable(Scope* const sc, DataTypeEnum dtype) : Variable() {
     
     unrollExpression = 1;
     scope = sc;
@@ -479,159 +278,28 @@ Variable::Variable(Scope* const sc, DataTypeEnum dtype, char* name, int nameLen)
 
 }
 
+Variable::Variable(Scope* const sc, Value value, char* name, int nameLen) : Variable(sc) {
+    
+    this->cvalue = value;
+    this->name = name;
+    this->nameLen = nameLen;
+
+}
+
 Variable::Variable(Variable* var) {
     
     memcpy(this, var, sizeof(Variable));
 
 }
 
-Function::Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, Value* outArg, int internalIdx) : SyntaxNode(NT_FUNCTION) {
+Function::Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, VariableDefinition* outArg, int internalIdx) : SyntaxNode(NT_FUNCTION) {
     this->scope = sc;
     this->name = name;
     this->nameLen = nameLen;
     this->inArgs = inArgs;
-    this->outArg = *outArg;
+    this->outArg = outArg;
     this->internalIdx = internalIdx;
     this->bodyScope = NULL;
-}
-
-
-
-// print stuff
-// LOOK AT: Ok, as ability to use any translator and use them in parallel 
-//      or whatever seems reasonable, but it still looks and feels very clunky. 
-//      So, what about dropping virtual functions and use enum as identifier 
-//      of what type of SyntaxNode we are in but also use it as index/offset which 
-//      allow translator to instantly call appropriate function, so we end up with 
-//      more information and one less function call for the same amount of data. 
-
-void Scope::print(Translator* const translator, FILE* file, int level) {
-    translator->printScope(file, level, this, NULL);
-};
-
-void Enumerator::print(Translator* const translator, FILE* file, int level) {
-    translator->printEnumerator(file, level, this, NULL);
-};
-
-void TypeDefinition::print(Translator* const translator, FILE* file, int level) {
-    translator->printTypeDefinition(file, level, this, NULL);
-};
-
-void VariableDefinition::print(Translator* const translator, FILE* file, int level) {
-    translator->printVariableDefinition(file, level, this, NULL);
-}
-
-void VariableAssignment::print(Translator* const translator, FILE* file, int level) {
-    translator->printVariableAssignment(file, level, this, NULL);
-}
-
-void Variable::print(Translator* const translator, FILE* file, int level) {
-    translator->printVariable(file, level, this, NULL);
-};
-
-void Function::print(Translator* const translator, FILE* file, int level) {
-    translator->printFunction(file, level, this, NULL);
-};
-
-void Branch::print(Translator* const translator, FILE* file, int level) {
-    translator->printBranch(file, level, this, NULL);
-};
-
-void SwitchCase::print(Translator* const translator, FILE* file, int level) {
-    translator->printSwitchCase(file, level, this, NULL);
-};
-
-void WhileLoop::print(Translator* const translator, FILE* file, int level) {
-    translator->printWhileLoop(file, level, this, NULL);
-};
-
-void ForLoop::print(Translator* const translator, FILE* file, int level) {
-    translator->printForLoop(file, level, this, NULL);
-};
-
-void Loop::print(Translator* const translator, FILE* file, int level) {
-    translator->printLoop(file, level, this, NULL);
-};
-
-void ReturnStatement::print(Translator* const translator, FILE* file, int level) {
-    translator->printReturnStatement(file, level, this, NULL);
-};
-
-void ContinueStatement::print(Translator* const translator, FILE* file, int level) {
-    translator->printContinueStatement(file, level, this, NULL);
-};
-
-void BreakStatement::print(Translator* const translator, FILE* file, int level) {
-    translator->printBreakStatement(file, level, this, NULL);
-};
-
-void GotoStatement::print(Translator* const translator, FILE* file, int level) {
-    translator->printGotoStatement(file, level, this, NULL);
-};
-
-void Label::print(Translator* const translator, FILE* file, int level) {
-    translator->printLabel(file, level, this, NULL);
-};
-
-void Namespace::print(Translator* const translator, FILE* file, int level) {
-    translator->printNamespace(file, level, this, NULL);
-};
-
-void ExpressionWrapper::print(Translator* const translator, FILE* file, int level) {
-    translator->printExpressionWrapper(file, level, this, NULL);
-}
-
-void Operand::print(Translator* const translator, FILE* file, const int level) {
-    translator->printOperand(file, level, this, NULL);
-}
-
-void FunctionCall::print(Translator* const translator, FILE* file, int level) {
-    translator->printFunctionCall(file, level, this, NULL);
-}
-
-void TypeInitialization::print(Translator* const translator, FILE* file, int level) {
-    translator->printTypeInitialization(file, level, this, NULL);
-}
-
-void StringInitialization::print(Translator* const translator, FILE* file, int level) {
-    translator->printStringInitialization(file, level, this, NULL);
-}
-
-void ArrayInitialization::print(Translator* const translator, FILE* file, int level) {
-    translator->printArrayInitialization(file, level, this, NULL);
-}
-
-void WrapperExpression::print(Translator* const translator, FILE* file, int level) {
-    translator->printWrapperExpression(file, level, this, NULL);
-}
-
-void UnaryExpression::print(Translator* const translator, FILE* file, int level) {
-    translator->printUnaryExpression(file, level, this, NULL);
-}
-
-void BinaryExpression::print(Translator* const translator, FILE* file, int level) {
-    translator->printBinaryExpression(file, level, this, NULL);
-}
-
-void Statement::print(Translator* const translator, FILE* file, int level) {
-    translator->printStatement(file, level, this, NULL);
-}
-
-void Union::print(Translator* const translator, FILE* file, int level) {
-    translator->printUnion(file, level, this, NULL);
-}
-
-void ErrorSet::print(Translator* const translator, FILE* file, int level) {
-    translator->printErrorSet(file, level, this, NULL);
-}
-
-void Slice::print(Translator* const translator, FILE* file, int level) {
-}
-
-
-
-void CodeBlock::print(Translator* const translator, FILE* file, int level) {
-    
 }
 
 
@@ -723,7 +391,7 @@ int applyBinaryOperatorMemberSelectionPointer(Operand* ans, Operand* a, Operand*
     ((Variable*) b)->id = var->id;
     ans->cvalue.any = var->cvalue.any;
     ((BinaryExpression*) (ans->expression))->operType = OP_DEREFERENCE_MEMBER_SELECTION;
-    ((BinaryExpression*) (ans->expression))->oper = operators + OP_DEREFERENCE_MEMBER_SELECTION;
+    // ((BinaryExpression*) (ans->expression))->oper = operators + OP_DEREFERENCE_MEMBER_SELECTION;
 
     return Err::OK;
 
@@ -744,221 +412,6 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
 
 
 
-
-
-
-
-
-/*
-int Syntax::evaluateDataTypes(Operand* op) {
-
-    Expression* ex = op->expression;
-    int rdtype = DT_UNDEFINED;
-
-    switch (ex->type) {
-        
-        case EXT_UNARY: {
-
-            UnaryExpression* uex = (UnaryExpression*) ex;
-            
-            const int dtype = evaluateDataTypes(uex->operand);
-            if (dtype < Err::OK) return dtype;
-
-            switch (uex->operType) {
-                
-                case OP_GET_ADDRESS: 
-                    rdtype = DT_POINTER;
-                    break;
-
-                case OP_GET_VALUE: 
-                    rdtype = uex->operand->cvalue.ptr->pointsToEnum;
-                    break;
-
-                default:
-                    rdtype = dtype;
-
-            }
-
-        }
-
-        case EXT_BINARY: {
-            
-            BinaryExpression* bex = (BinaryExpression*) ex;
-
-            const int dtypeA = evaluateDataTypes(bex->operandA);
-            if (dtypeA < Err::OK) return dtypeA;
-
-            const int dtypeB = evaluateDataTypes(bex->operandB);
-            if (dtypeB < Err::OK) return dtypeB;
-
-            const int oper = bex->operType;
-            switch (oper) {
-
-                case OP_SUBSCRIPT:
-                    if (dtypeA != DT_ARRAY) return Err::ARRAY_EXPECTED; // TODO : log error
-                    rdtype = bex->operandA->cvalue.arr->pointsToEnum;
-                    break;
-                
-                case OP_MEMBER_SELECTION:
-                    break;
-
-                default:
-                    rdtype = (dtypeA >= dtypeB) ? dtypeA : dtypeB;
-
-            }
-            
-        }
-
-        case EXT_TERNARY: {
-
-        }
-
-        case EXT_WRAPPER: {
-            
-            WrapperExpression* wex = (WrapperExpression*) ex;
-
-            const int dtype = evaluateDataTypes(wex->operand);
-            if (dtype < Err::OK) return dtype;
-            
-            rdtype = dtype;
-
-        }
-
-        case EXT_FUNCTION_CALL: {
-
-            FunctionCall* fex = (FunctionCall*) fex;
-            
-            for (int i = 0; i < fex->inArgs.size(); i++) {
-                const int err = evaluateDataTypes(fex->inArgs[i]);
-                if (err < 0) return err;
-            }
-
-            rdtype = fex->outArg->cvalue.dtypeEnum;
-
-        }
-
-        case EXT_TYPE_INITIALIZATION: {
-
-            TypeInitialization* tex = (TypeInitialization*) ex;
-            return DT_CUSTOM;
-
-        }
-
-    }
-
-    op->cvalue.dtypeEnum = (DataTypeEnum) rdtype;
-    return rdtype;
-
-}
-
-
-
-
-
-// returns DataTypeEnum of expression or error
-// assumings that each operand has defined dtype (evaluateDataTypes ran through branch)
-int Syntax::evaluate(Operand* op) {
-
-    Expression* ex = op->expression;
-    
-    switch (ex->type) {
-        
-        case EXT_UNARY: {
-
-            UnaryExpression* uex = (UnaryExpression*) ex;
-            
-            const int dtype = evaluate(uex->operand);
-            if (dtype < Err::OK) return dtype;
-
-            if (!(uex->operand->cvalue.hasValue)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), uex->operand->loc);
-                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
-            }
-
-            Interpreter::applyOperator(uex->operType, &(uex->operand->cvalue));
-            op->cvalue = uex->operand->cvalue;
-            
-        }
-
-        case EXT_BINARY: {
-            
-            BinaryExpression* bex = (BinaryExpression*) ex;
-
-            const int dtypeA = evaluate(bex->operandA);
-            if (dtypeA < Err::OK) return dtypeA;
-
-            if (!(bex->operandA->cvalue.hasValue)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), bex->operandA->loc);
-                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
-            }
-
-            const int dtypeB = evaluate(bex->operandB);
-            if (dtypeB < Err::OK) return dtypeB;
-
-            if (!(bex->operandB->cvalue.hasValue)) {
-                Logger::log(Logger::ERROR, ERR_STR(Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED), bex->operandB->loc);
-                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
-            }
-
-            const int hasValueA = bex->operandA->cvalue.hasValue;
-            const int hasValueB = bex->operandB->cvalue.hasValue;
-            
-            if (dtypeA < dtypeB) {
-                Operand* tmp = bex->operandA;
-                bex->operandA = bex->operandB;
-                bex->operandB = tmp;
-            }
-
-            
-            Interpreter::applyOperator(bex->operType, &(bex->operandA->cvalue), &(bex->operandB->cvalue));
-            op->cvalue = bex->operandA->cvalue;
-
-        }
-
-        case EXT_TERNARY: {
-
-        }
-
-        case EXT_WRAPPER: {
-            
-            WrapperExpression* wex = (WrapperExpression*) ex;
-            op->cvalue = wex->operand->cvalue;
-
-        }
-
-        case EXT_FUNCTION_CALL: {
-
-            FunctionCall* fex = (FunctionCall*) fex;
-
-            for (int i = 0; i < fex->inArgs.size(); i++) {
-                const int err = evaluate(fex->inArgs[i]);
-                if (err < Err::OK) return err;
-                fex->fcn->inArgs[i]->var->cvalue.ptr = fex->inArgs[i]->cvalue.ptr;
-            }
-
-            const int err = Interpreter::execFunction(fex->fcn, op);
-            if (err < 0) return err;
-
-            op->cvalue.hasValue = 1;
-            return err;
-
-        }
-
-        case EXT_TYPE_INITIALIZATION: {
-
-            TypeInitialization* tex = (TypeInitialization*) ex;
-            return Err::OK;
-
-        }
-
-    }
-
-    op->expression = NULL;
-    return Err::OK;
-
-}
-
-*/
 
 
 

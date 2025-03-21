@@ -1,4 +1,4 @@
-#pragma once
+// #pragma once
 
 #include "itself_console_translator.h"
 
@@ -9,8 +9,54 @@
 
 
 
-// maybe const?
-Translator* const thisTranslator = &translatorItselfConsole;
+static void printScope(FILE* file, int level, Scope* const node, Variable* lvalue = NULL);
+static void printVariableDefinition(FILE* file, int level, VariableDefinition* const node, Variable* lvalue = NULL);
+static void printVariableAssignment(FILE* file, int level, VariableAssignment* const node, Variable* lvalue = NULL);
+static void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Variable* lvalue = NULL);
+static void printUnion(FILE* file, int level, Union* const node, Variable* lvalue = NULL);
+static void printErrorSet(FILE* file, int level, ErrorSet* const node, Variable* lvalue = NULL);
+static void printSwitchCase(FILE* file, int level, SwitchCase* const node, Variable* lvalue = NULL);
+static void printLoop(FILE* file, int level, Loop* const node, Variable* lvalue = NULL);
+static void printReturnStatement(FILE* file, int level, ReturnStatement* const node, Variable* lvalue = NULL);
+static void printContinueStatement(FILE* file, int level, ContinueStatement* const node, Variable* lvalue = NULL);
+static void printBreakStatement(FILE* file, int level, BreakStatement* const node, Variable* lvalue = NULL);
+static void printGotoStatement(FILE* file, int level, GotoStatement* const node, Variable* lvalue = NULL);
+static void printLabel(FILE* file, int level, Label* const node, Variable* lvalue = NULL);
+static void printNamespace(FILE* file, int level, Namespace* const node, Variable* lvalue = NULL);
+static void printStatement(FILE* file, int level, Statement* const node, Variable* lvalue = NULL);
+static void printTypeInitialization(FILE* file, int level, TypeInitialization* const node, Variable* lvalue = NULL);
+static void printEnumerator(FILE* file, int level, Enumerator* const node, Variable* lvalue = NULL);
+static void printVariable(FILE* file, int level, Variable* const node, Variable* lvalue = NULL);
+static void printFunction(FILE* file, int level, Function* const node, Variable* lvalue = NULL);
+static void printBranch(FILE* file, int level, Branch* const node, Variable* lvalue = NULL);
+static void printWhileLoop(FILE* file, int level, WhileLoop* const node, Variable* lvalue = NULL);
+static void printForLoop(FILE* file, int level, ForLoop* const node, Variable* lvalue = NULL);
+static void printExpression(FILE* file, int level, Expression* const node, Variable* lvalue = NULL);
+static void printWrapperExpression(FILE* file, int level, WrapperExpression* const node, Variable* lvalue = NULL);
+static void printExpressionWrapper(FILE* file, int level, ExpressionWrapper* const node, Variable* lvalue = NULL);
+static void printConstExpression(FILE* file, int level, ConstExpression* const node, Variable* lvalue = NULL);
+static void printOperatorExpression(FILE* file, int level, OperatorExpression* const node, Variable* lvalue = NULL);
+static void printUnaryExpression(FILE* file, int level, UnaryExpression* const node, Variable* lvalue = NULL);
+static void printBinaryExpression(FILE* file, int level, BinaryExpression* const node, Variable* lvalue = NULL);
+static void printTernaryExpression(FILE* file, int level, TernaryExpression* const node, Variable* lvalue = NULL);
+static void printFunctionCall(FILE* file, int level, FunctionCall* const node, Variable* lvalue = NULL);
+static void printOperand(FILE* file, int level, Operand* const node, Variable* lvalue = NULL);
+static void printUnaryOperator(FILE* file, int level, UnaryOperator* const node, Variable* lvalue = NULL);
+static void printBinaryOperator(FILE* file, int level, BinaryOperator* const node, Variable* lvalue = NULL);
+static void printTernaryOperator(FILE* file, int level, TernaryOperator* const node, Variable* lvalue = NULL);
+
+static void printStringInitialization(FILE* file, int level, StringInitialization* const node, Variable* lvalue);
+static void printArrayInitialization(FILE* file, int level, ArrayInitialization* const node, Variable* lvalue);
+
+
+
+
+
+
+
+
+
+
 
 void printForeignLangFunction(FILE* file, Function* node) {
 
@@ -19,6 +65,102 @@ void printForeignLangFunction(FILE* file, Function* node) {
 
 
 void init (char* const dirName) {
+
+}
+
+void print(FILE* file, int level, SyntaxNode* node, Variable* lvalue = NULL) {
+    
+    switch (node->type) {
+        
+        case NT_SCOPE :
+            printScope(file, level, (Scope*) node, lvalue);
+            break;
+        case NT_VARIABLE_DEFINITION :
+            printVariableDefinition(file, level, (VariableDefinition*) node, lvalue);
+            break;
+        case NT_VARIABLE_ASSIGNMENT :
+            printVariableAssignment(file, level, (VariableAssignment*) node, lvalue);
+            break;
+        case NT_TYPE_DEFINITION :
+            printTypeDefinition(file, level, (TypeDefinition*) node, lvalue);
+            break;
+        case NT_TYPE_INITIALIZATION :
+            printTypeInitialization(file, level, (TypeInitialization*) node, lvalue);
+            break;
+        case NT_UNION :
+            printUnion(file, level, (Union*) node, lvalue);
+            break;
+        case NT_ERROR :
+            printErrorSet(file, level, (ErrorSet*) node, lvalue);
+            break;
+        case NT_ENUMERATOR :
+            printEnumerator(file, level, (Enumerator*) node, lvalue);
+            break;
+        case NT_VARIABLE :
+            printVariable(file, level, (Variable*) node, lvalue);
+            break;
+        case NT_FUNCTION :
+            printFunction(file, level, (Function*) node, lvalue);
+            break;
+        case NT_BRANCH :
+            printBranch(file, level, (Branch*) node, lvalue);
+            break;
+        case NT_SWITCH_CASE :
+            printSwitchCase(file, level, (SwitchCase*) node, lvalue);
+            break;
+        case NT_WHILE_LOOP :
+            printWhileLoop(file, level, (WhileLoop*) node, lvalue);
+            break;
+        case NT_FOR_LOOP :
+            printForLoop(file, level, (ForLoop*) node, lvalue);
+            break;
+        case NT_LOOP :
+            printLoop(file, level, (Loop*) node, lvalue);
+            break;
+        case NT_RETURN_STATEMENT :
+            printReturnStatement(file, level, (ReturnStatement*) node, lvalue);
+            break;
+        case NT_CONTINUE_STATEMENT :
+            printContinueStatement(file, level, (ContinueStatement*) node, lvalue);
+            break;
+        case NT_BREAK_STATEMENT :
+            printBreakStatement(file, level, (BreakStatement*) node, lvalue);
+            break;
+        case NT_GOTO_STATEMENT :
+            printGotoStatement(file, level, (GotoStatement*) node, lvalue);
+            break;
+        case NT_LABEL :
+            printLabel(file, level, (Label*) node, lvalue);
+            break;
+        case NT_NAMESPACE :
+            printNamespace(file, level, (Namespace*) node, lvalue);
+            break;
+        case NT_STATEMENT :
+            printStatement(file, level, (Statement*) node, lvalue);
+            break;
+        case NT_FUNCTION_CALL :
+            printFunctionCall(file, level, (FunctionCall*) node, lvalue);
+            break;
+        case NT_OPERAND :
+            printOperand(file, level, (Operand*) node, lvalue);
+            break;
+        case NT_UNARY_OPERATOR :
+            printUnaryOperator(file, level, (UnaryOperator*) node, lvalue);
+            break;
+        case NT_BINARY_OPERATOR :
+            printBinaryOperator(file, level, (BinaryOperator*) node, lvalue);
+            break;
+        case NT_TERNARY_OPERATOR :
+            printTernaryOperator(file, level, (TernaryOperator*) node, lvalue);
+            break;
+        case NT_EXPRESSION_WRAPPER :
+            printExpressionWrapper(file, level, (ExpressionWrapper*) node, lvalue);
+            break;     
+    
+        default:
+            break;
+    
+    }
 
 }
 
@@ -269,7 +411,7 @@ void printOperator(OperatorEnum opType) {
 
 
 
-void printScope(FILE* file, int level, Scope* const node, Variable* lvalue = NULL) {
+void printScope(FILE* file, int level, Scope* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -277,13 +419,13 @@ void printScope(FILE* file, int level, Scope* const node, Variable* lvalue = NUL
     
     printf("%s{\n", tab);
     for (int i = 0; i < (int) node->children.size(); i++) {
-        node->children[i]->print(thisTranslator, file, level + 1);
+        print(file, level + 1, node->children[i]);
     }
     printf("%s}\n", tab);
 
 }
 
-void printVariableDefinition(FILE* file, int level, VariableDefinition* const node, Variable* lvalue = NULL) {
+void printVariableDefinition(FILE* file, int level, VariableDefinition* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -303,7 +445,7 @@ void printVariableDefinition(FILE* file, int level, VariableDefinition* const no
     if (node->var->expression) {
         
         Expression* ex = node->var->expression;
-        ex->print(thisTranslator, file, level);
+        printExpression(file, level, ex);
 
     } else {
         //var->print(level);
@@ -314,21 +456,21 @@ void printVariableDefinition(FILE* file, int level, VariableDefinition* const no
 
 }
 
-void printVariableAssignment(FILE* file, int level, VariableAssignment* const node, Variable* lvalue = NULL) {
+void printVariableAssignment(FILE* file, int level, VariableAssignment* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
     CSP_GEN_TAB(tab, level);
 
     printf("%s", tab);
-    node->lvar->print(thisTranslator, file, level);
+    printVariable(file, level, node->lvar);
     printf(" = ");
     //printf("%s%.*s = ", tab, var->nameLen, var->name);
     // again, somehow have to get rid of this check
     if (node->rvar->expression) {
         
         Expression* ex = node->rvar->expression;
-        ex->print(thisTranslator, file);
+        printExpression(file, level, ex);
 
     } else {
         printOperandValue(node->rvar);
@@ -338,7 +480,7 @@ void printVariableAssignment(FILE* file, int level, VariableAssignment* const no
 
 }
 
-void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Variable* lvalue = NULL) {
+void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -380,7 +522,7 @@ void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Vari
 
 }
 
-void printTypeInitialization(FILE* file, int level, TypeInitialization* const node, Variable* lvalue = NULL) {
+void printTypeInitialization(FILE* file, int level, TypeInitialization* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -397,14 +539,14 @@ void printTypeInitialization(FILE* file, int level, TypeInitialization* const no
         if (var->nameLen > 0) {
             printf("%.*s = ", var->nameLen, var->name);
             if (var->expression) {
-                var->expression->print(thisTranslator, file, level + 1);
+                printExpression(file, level + 1, var->expression);
             } else {
                 //printf("%s", tab);
                 printOperandValue(var);
             }
         } else {
             if (var->expression) {
-                var->expression->print(thisTranslator, file, level + 1);
+                printExpression(file, level + 1, var->expression);
             } else {
                 //printf("%s", tab);
                 printOperandValue(var);
@@ -424,14 +566,14 @@ void printTypeInitialization(FILE* file, int level, TypeInitialization* const no
         if (var->nameLen > 0) {
             printf("%.*s = ", var->nameLen, var->name);
             if (var->expression) {
-                var->expression->print(thisTranslator, file, level + 1);
+                printExpression(file, level + 1, var->expression);
             } else {
                 //printf("%s", tab);
                 printOperandValue(var);
             }
         } else {
             if (var->expression) {
-                var->expression->print(thisTranslator, file, level + 1);
+                printExpression(file, level + 1, var->expression);
             } else {
                 //printf("%s", tab);
                 printOperandValue(var);
@@ -444,15 +586,15 @@ void printTypeInitialization(FILE* file, int level, TypeInitialization* const no
 
 }
 
-void printStringInitialization(FILE* file, int level, StringInitialization* const node, Variable* lvalue = NULL) {
+void printStringInitialization(FILE* file, int level, StringInitialization* const node, Variable* lvalue) {
 
 }
 
-void printArrayInitialization(FILE* file, int level, ArrayInitialization* const node, Variable* lvalue = NULL) {
+void printArrayInitialization(FILE* file, int level, ArrayInitialization* const node, Variable* lvalue) {
 
 }
 
-void printEnumerator(FILE* file, int level, Enumerator* const node, Variable* lvalue = NULL) {
+void printEnumerator(FILE* file, int level, Enumerator* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -478,21 +620,21 @@ void printEnumerator(FILE* file, int level, Enumerator* const node, Variable* lv
 
 }
 
-void printVariable(FILE* file, int level, Variable* const node, Variable* lvalue = NULL) {
+void printVariable(FILE* file, int level, Variable* const node, Variable* lvalue) {
     
     if (node->def && node->def->flags & IS_CMP_TIME) {
         printOperandValue(node->def->var);
     } else if (node->nameLen > 0) {
         printf("%.*s_%i", node->nameLen, node->name, node->id);
     } else {
-        if (node->expression) node->expression->print(&translatorItselfConsole, file);
+        if (node->expression) printExpression(file, level, node->expression);
         else printOperandValue(node);
     }
 
 }
 
 
-void printFunction(FILE* file, int level, Function* const node, Variable* lvalue = NULL) {
+void printFunction(FILE* file, int level, Function* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -514,20 +656,21 @@ void printFunction(FILE* file, int level, Function* const node, Variable* lvalue
     }
 
     // out arg
-    if (node->outArg.dtypeEnum == DT_VOID) {
+    const int outDtype = node->outArg->var->cvalue.dtypeEnum;
+    if (outDtype == DT_VOID) {
         printf(")\n");
     } else {
-        const DataType dtype = dataTypes[node->outArg.dtypeEnum];
+        const DataType dtype = dataTypes[outDtype];
         printf("%s)\n", dtype.name);
     }
 
     // TODO : empty body crash
-    node->bodyScope->print(thisTranslator, file, level);
+    printScope(file, level, node->bodyScope);
 
 }
 
 
-void printBranch(FILE* file, int level, Branch* const node, Variable* lvalue = NULL) {
+void printBranch(FILE* file, int level, Branch* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
@@ -535,147 +678,159 @@ void printBranch(FILE* file, int level, Branch* const node, Variable* lvalue = N
 
     // basic if branche
     printf("%s%s ", tab, KWS_IF);
-    node->expressions[0]->print(thisTranslator, file, level);
+    printVariable(file, level, node->expressions[0]);
     putchar('\n');
-    node->scopes[0]->print(thisTranslator, file, level);
+    printScope(file, level, node->scopes[0]);
     
     // if elses
     int i = 1;
     for (; i < node->expressions.size(); i++) {
         printf("%s%s %s ", tab, KWS_ELSE, KWS_IF);
-        node->expressions[i]->print(thisTranslator, file, level);
+        printVariable(file, level, node->expressions[i]);
         putchar('\n');
-        node->scopes[i]->print(thisTranslator, file, level);
+        printScope(file, level, node->scopes[i]);
     }
 
     // final else if present
     if (i < node->scopes.size()) {
         printf("%s%s\n", tab, KWS_ELSE);
-        node->scopes[(int) node->scopes.size() - 1]->print(thisTranslator, file, level);
+        printScope(file, level, node->scopes[(int) node->scopes.size() - 1]);
     }
 
 }
 
-void printSwitchCase(FILE* file, int level, SwitchCase* const node, Variable* lvalue = NULL) {
+void printSwitchCase(FILE* file, int level, SwitchCase* const node, Variable* lvalue) {
 
 }
 
-void printWhileLoop(FILE* file, int level, WhileLoop* const node, Variable* lvalue = NULL) {
+void printWhileLoop(FILE* file, int level, WhileLoop* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
     CSP_GEN_TAB(tab, level);
 
     printf("%s%s ", tab, KWS_WHILE);
-    node->expression->print(thisTranslator, file, level);
+    printVariable(file, level, node->expression);
     putchar('\n');
-    node->bodyScope->print(thisTranslator, file, level);
+    printScope(file, level, node->bodyScope);
 
 }
 
 
-void printForLoop(FILE* file, int level, ForLoop* const node, Variable* lvalue = NULL) {
+void printForLoop(FILE* file, int level, ForLoop* const node, Variable* lvalue) {
 
 }
 
-void printLoop(FILE* file, int level, Loop* const node, Variable* lvalue = NULL) {
+void printLoop(FILE* file, int level, Loop* const node, Variable* lvalue) {
 
 }
 
-void printReturnStatement(FILE* file, int level, ReturnStatement* const node, Variable* lvalue = NULL) {
+void printReturnStatement(FILE* file, int level, ReturnStatement* const node, Variable* lvalue) {
 
     printf("return ");
-    node->var->print(&translatorItselfConsole, file, level);
+    printVariable(file, level, node->var);
     putchar(',');
-    node->err->print(&translatorItselfConsole, file, level);
+    printVariable(file, level, node->err);
 
 }
 
-void printContinueStatement(FILE* file, int level, ContinueStatement* const node, Variable* lvalue = NULL) {
+void printContinueStatement(FILE* file, int level, ContinueStatement* const node, Variable* lvalue) {
 
     printf("continue;");
 
 }
 
-void printBreakStatement(FILE* file, int level, BreakStatement* const node, Variable* lvalue = NULL) {
+void printBreakStatement(FILE* file, int level, BreakStatement* const node, Variable* lvalue) {
 
     printf("break;");
 
 }
 
-void printGotoStatement(FILE* file, int level, GotoStatement* const node, Variable* lvalue = NULL) {
+void printGotoStatement(FILE* file, int level, GotoStatement* const node, Variable* lvalue) {
 
     printf("goto %.*s;", node->nameLen, node->name);
 
 }
 
-void printLabel(FILE* file, int level, Label* const node, Variable* lvalue = NULL) {
+void printLabel(FILE* file, int level, Label* const node, Variable* lvalue) {
 
     printf(">%.*s;", node->nameLen, node->name);
 
 }
 
-void printNamespace(FILE* file, int level, Namespace* const node, Variable* lvalue = NULL) {
+void printNamespace(FILE* file, int level, Namespace* const node, Variable* lvalue) {
 
 }
 
-void printExpression(FILE* file, int level, Expression* const node, Variable* lvalue = NULL) {
+void printExpression(FILE* file, int level, Expression* const node, Variable* lvalue) {
 
 }
 
-void printExpressionWrapper(FILE* file, int level, ExpressionWrapper* const node, Variable* lvalue = NULL) {
+void printForeignCode() {
+
+}
+
+void printExpressionWrapper(FILE* file, int level, ExpressionWrapper* const node, Variable* lvalue) {
 
     level = (level > CSP_MAX_TAB_LEVEL) ? CSP_MAX_TAB_LEVEL : level;
     char tab[CSP_MAX_TAB_LEVEL + 1];
     CSP_GEN_TAB(tab, level);
 
     printf("%s", tab);
-    node->operand->print(thisTranslator, file, level);
+    printVariable(file, level, node->operand);
     printf(";\n");
 
 }
 
-void printWrapperExpression(FILE* file, int level, WrapperExpression* const node, Variable* lvalue = NULL) {
+void printWrapperExpression(FILE* file, int level, WrapperExpression* const node, Variable* lvalue) {
 
-    node->operand->print(thisTranslator, file, level);
-
-}
-
-void printConstExpression(FILE* file, int level, ConstExpression* const node, Variable* lvalue = NULL) {
+    printVariable(file, level, node->operand);
 
 }
 
-void printOperatorExpression(FILE* file, int level, OperatorExpression* const node, Variable* lvalue = NULL) {
+void printConstExpression(FILE* file, int level, ConstExpression* const node, Variable* lvalue) {
 
 }
 
-void printUnaryExpression(FILE* file, int level, UnaryExpression* const node, Variable* lvalue = NULL) {
+void printOperatorExpression(FILE* file, int level, OperatorExpression* const node, Variable* lvalue) {
+
+}
+
+void printUnaryExpression(FILE* file, int level, UnaryExpression* const node, Variable* lvalue) {
 
     printf("(");
     
     // node->oper->print(thisTranslator);
     printOperator(node->operType);
 
-    if (node->operand->unrollExpression && node->operand->expression) node->operand->expression->print(thisTranslator, file);
-    else node->operand->print(thisTranslator, file, level);
-        // printOperandValue(operand);
+    if (node->operand->unrollExpression && node->operand->expression) {
+        printExpression(file, level, node->operand->expression);
+    } else {
+        printVariable(file, level, node->operand);
+    }
 
     printf(")");
 
 }
 
-void printBinaryExpression(FILE* file, int level, BinaryExpression* const node, Variable* lvalue = NULL) {
+void printBinaryExpression(FILE* file, int level, BinaryExpression* const node, Variable* lvalue) {
 
     printf("(");
     
-    if (node->operandA->unrollExpression && node->operandA->expression) node->operandA->expression->print(thisTranslator, file);
-    else node->operandA->print(thisTranslator, file, level); //printOperandValue(operandA);
+    if (node->operandA->unrollExpression && node->operandA->expression) {
+        printExpression(file, level, node->operandA->expression);
+    } else {
+        printVariable(file, level, node->operandA); 
+    }
 
     // node->oper->print(thisTranslator, 1);
     printOperator(node->operType);
 
-    if (node->operandB->unrollExpression && node->operandB->expression) node->operandB->expression->print(thisTranslator, file);
-    else node->operandB->print(thisTranslator, file, level); //printOperandValue(operandB);
+    if (node->operandB->unrollExpression && node->operandB->expression) {
+        printExpression(file, level, node->operandB->expression);
+    } else {
+        printVariable(file, level, node->operandB);
+    }
 
     if (node->operType == OP_SUBSCRIPT) putchar(']');
 
@@ -683,41 +838,36 @@ void printBinaryExpression(FILE* file, int level, BinaryExpression* const node, 
 
 }
 
-void printTernaryExpression(FILE* file, int level, TernaryExpression* const node, Variable* lvalue = NULL) {
+void printTernaryExpression(FILE* file, int level, TernaryExpression* const node, Variable* lvalue) {
 
 }
 
-void printStatement(FILE* file, int level, Statement* const node, Variable* lvalue = NULL) {
+void printStatement(FILE* file, int level, Statement* const node, Variable* lvalue) {
     
-    node->op->print(thisTranslator, file, level);
+    printVariable(file, level, node->op);
     putchar(';');
 
 }
 
-void printFunctionCall(FILE* file, int level, FunctionCall* const node, Variable* lvalue = NULL) {
+void printFunctionCall(FILE* file, int level, FunctionCall* const node, Variable* lvalue) {
 
     printf("%.*s(", node->nameLen, node->name);
     for (int i = 0; i < ((int) node->inArgs.size()) - 1; i++) {
-        node->inArgs[i]->print(thisTranslator, file, level);
+        printVariable(file, level, node->inArgs[i]);
         putchar(',');
         putchar(' ');
-        //Variable* const var = inArgs[i];
-        //printf("%s %.*s, ", (dataTypes + var->dataTypeEnum)->word, var->nameLen, var->name);
-    }
-    if ((int) node->inArgs.size() - 1 >= 0) {
-        node->inArgs[node->inArgs.size() - 1]->print(thisTranslator, file, 0);
-        //Variable* const var = inArgs[inArgs.size() - 1];
-        //printf("%s %.*s", (dataTypes + var->dataTypeEnum)->word, var->nameLen, var->name);
+    } if ((int) node->inArgs.size() - 1 >= 0) {
+        printVariable(file, level, node->inArgs[node->inArgs.size() - 1]);
     }
     putchar(')');
 
 }
 
-void printOperand(FILE* file, int level, Operand* const node, Variable* lvalue = NULL) {
+void printOperand(FILE* file, int level, Operand* const node, Variable* lvalue) {
 
     // maybe separate type?
     if (node->expression) {
-        node->expression->print(thisTranslator, file, level);
+        printExpression(file, level, node->expression);
     } else {
         printOperandValue(node);
     }
@@ -744,15 +894,15 @@ void printErrorSet(FILE* file, int level, ErrorSet* const node, Variable* lvalue
 
 }
 
-void printUnaryOperator(FILE* file, int level, UnaryOperator* const node, Variable* lvalue = NULL) {
+void printUnaryOperator(FILE* file, int level, UnaryOperator* const node, Variable* lvalue) {
 
 }
 
-void printBinaryOperator(FILE* file, int level, BinaryOperator* const node, Variable* lvalue = NULL) {
+void printBinaryOperator(FILE* file, int level, BinaryOperator* const node, Variable* lvalue) {
 
 }
 
-void printTernaryOperator(FILE* file, int level, TernaryOperator* const node, Variable* lvalue = NULL) {
+void printTernaryOperator(FILE* file, int level, TernaryOperator* const node, Variable* lvalue) {
 
 }
 
@@ -760,43 +910,10 @@ void printTernaryOperator(FILE* file, int level, TernaryOperator* const node, Va
 
 Translator translatorItselfConsole{
     NULL,
+    0,
     &init,
-    &exit,
-    &printScope,
-    &printVariableDefinition,
-    &printVariableAssignment,
-    &printTypeDefinition,
-    &printTypeInitialization,
-    &printStringInitialization,
-    &printArrayInitialization,
-    &printUnion,
-    &printErrorSet,
-    &printEnumerator,
-    &printVariable,
-    &printFunction,
-    &printBranch,
-    &printSwitchCase,
-    &printWhileLoop,
-    &printForLoop,
-    &printLoop,
-    &printReturnStatement,
-    &printContinueStatement,
-    &printBreakStatement,
-    &printGotoStatement,
-    &printLabel,
-    &printNamespace,
+    &print,
     &printExpression,
-    &printWrapperExpression,
-    &printExpressionWrapper,
-    &printConstExpression,
-    &printOperatorExpression,
-    &printUnaryExpression,
-    &printBinaryExpression,
-    &printTernaryExpression,
-    &printStatement,
-    &printFunctionCall,
-    &printOperand,
-    &printUnaryOperator,
-    &printBinaryOperator,
-    &printTernaryOperator
+    &printForeignCode,
+    &exit
 };

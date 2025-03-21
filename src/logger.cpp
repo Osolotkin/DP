@@ -1,4 +1,4 @@
-#pragma once
+// #pragma once
 
 #include <stdio.h>
 #include <string.h>
@@ -16,7 +16,8 @@
 
 namespace Logger {
 
-    uint32_t verbosity = HINT | INFO | WARNING | ERROR;
+    uint32_t verbosity = PLAIN | HINT | INFO | WARNING | ERROR;
+    uint64_t mute = 0;
 
     int getEndClosure(const char ch) {
         switch (ch) {
@@ -28,23 +29,34 @@ namespace Logger {
         }
     }
 
+    // messy
     void log(const uint32_t type, const char* const message, Location* loc, int len, ...) {
 
+        if (mute) return;
         if (!(verbosity & type)) return;
 
-        char* const body = loc->file.buff;
+        char* body = NULL;
 
-        // TODO : buggy when \0
-        int tabCount;
-        const int lnStartIdx = Utils::findLineStart(body, loc->idx, &tabCount);
-        const int lnEndIdx = Utils::findLineEnd(body, loc->idx);
-        const int lnLength = lnEndIdx - lnStartIdx + 1;
+        int idx = 0;
+        int tabCount = 0;
+        int lnStartIdx = 0;
+        int lnEndIdx = 0;
+        int lnLength = 0;
+
+        if (loc) {
+            // TODO : buggy when \0
+            body = loc->file->buff;
+            idx = loc->idx;
+            lnStartIdx = Utils::findLineStart(body, idx, &tabCount);
+            lnEndIdx = Utils::findLineEnd(body, idx);
+            lnLength = lnEndIdx - lnStartIdx + 1;
+        }
 
         switch (len) {
 
             case STATEMENT : {
-                char* strOff = Utils::findChar(body + loc->idx, STATEMENT_END);
-                len = (strOff) ? strOff - (body + loc->idx) : 0;
+                char* strOff = Utils::findChar(body + idx, STATEMENT_END);
+                len = (strOff) ? strOff - (body + idx) : 0;
                 break;
             }
             
@@ -53,7 +65,7 @@ namespace Logger {
                 break;
 
             case CLOSURE : {
-                len = Utils::findClosureEnd(body + loc->idx - 1, getEndClosure(body[loc->idx - 1])) - 1;
+                len = Utils::findClosureEnd(body + idx - 1, getEndClosure(body[idx - 1])) - 1;
                 break;
             }
         
@@ -75,7 +87,7 @@ namespace Logger {
             case ERROR : {
                 underlineEscColor = RED_ESC;
                 printf(RED_ESC "\nERROR" COLOR_RESET_ESC);
-                printf("(%i, %i) : ", loc->line, loc->idx - lnStartIdx + 1);
+                // printf("(%i, %i) : ", loc->line, idx - lnStartIdx + 1);
                 break;
             }
         
@@ -84,10 +96,17 @@ namespace Logger {
         
         }
 
+        if (loc) {
+            printf("(%i, %i) : ", loc->line, idx - lnStartIdx + 1);
+        }
+
         va_list args;
         va_start(args, len);
         vprintf(message, args);
         va_end (args);
+
+        if (!loc) return;
+
         putchar('\n');
 
         // enough?
@@ -106,6 +125,10 @@ namespace Logger {
         for (; i < loc->idx + len; i++) putchar('^');
         printf(COLOR_RESET_ESC);
         for (; i < lnEndIdx; i++) putchar(' ');
+
+        putchar('\n');
+        
+        printf(" in file: %s\n", loc->file->name);
         
         putchar('\n');
 
@@ -113,8 +136,10 @@ namespace Logger {
 
     void log(const uint32_t type, const char* const message) {
 
+        if (mute) return;
         if (!(verbosity & type)) return;
 
+        const char* underlineEscColor = "";
         switch (type) {
 
             case HINT : {
@@ -132,7 +157,7 @@ namespace Logger {
             }
 
             case ERROR : {
-                printf("ERROR : ");
+                printf(RED_ESC "\nERROR " COLOR_RESET_ESC);
                 break;
             }
         
@@ -140,6 +165,7 @@ namespace Logger {
                 break;
         
         }
+
         printf(message);
 
     }

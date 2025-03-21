@@ -1,8 +1,11 @@
 #pragma once
 
 #include "stdint.h"
+#include <filesystem>
 
-
+constexpr uint16_t toDoubleChar(char first, char second) {
+    return (static_cast<uint16_t>(first) << 8) | static_cast<uint16_t>(second);
+}
 
 struct Location;
 struct LogInfo;
@@ -35,7 +38,8 @@ const char ESCAPE_CHAR = '\\';
 const char POINTER_SYMBOL = '^';
 const char ADDRESS_SYMBOL = '&';
 
-const uint16_t SCOPE_RESOLUTION_SYMBOL = '::';
+const uint16_t SCOPE_RESOLUTION_SYMBOL = toDoubleChar(':', ':');
+const uint16_t FILL_THE_REST_SYMBOL = toDoubleChar('.', '.');
 
 const char KWS_VOID[]       = "void";
 const char KWS_INT[]        = "int";
@@ -57,9 +61,12 @@ const char KWS_CMP_TIME[]   = "embed";
 const char KWS_FUNCTION[]   = "fcn";
 const char KWS_ENUM[]       = "enum";
 const char KWS_TYPE_DEF[]   = "def";
+const char KWS_SCOPE[]      = "scope";
 const char KWS_NAMESPACE[]  = "namespace";
 const char KWS_ERROR[]      = "error";
+const char KWS_STRUCT[]     = "struct";
 const char KWS_UNION[]      = "union";
+const char KWS_CATCH[]      = "catch";
 
 const char KWS_IF[]     = "if";
 const char KWS_ELSE[]   = "else";
@@ -78,14 +85,24 @@ const char KWS_CONTINUE[]   = "continue";
 const char KWS_BREAK[]      = "break";
 
 const char KWS_ALLOC[]      = "alloc";
+const char KWS_FREE[]       = "free";
+
+const char KWS_ARRAY_LENGTH[]   = "length";
+const char KWS_ARRAY_SIZE[]     = "size";
+
+const char KWS_IMPORT[]    = "import";
 
 const char DKWS_LANG_DEF[]  = "lang_def";
-const char DKWS_IMPORT[]    = "import";
 
 const char IFS_PRINTF[] = "printf";
 const char IFS_ALLOC[]  = "malloc";
+const char IFS_FREE[]   = "free";
 
 const char IVS_NULL[] = "null";
+const char IVS_TRUE[] = "true";
+const char IVS_FALSE[] = "false";
+
+const char IS_FILL = '@';
 
 // TODO : better name
 enum State : uint64_t {
@@ -107,13 +124,14 @@ enum State : uint64_t {
     
     IS_ALLOCATED = 1 << 13,
 
-    IS_STRING_12  = 1 << 14,
+    IS_STRING  = 1 << 14,
+
+    IS_ALLOCATION = 1 << 15,
+    IS_LENGTH = 1 << 16,
+    IS_SIZE = 1 << 17,
 
     IS_RENDERED = 1 << 24,
     /*
-    IS_RESERVED_13  = 1 << 15,
-    IS_RESERVED_14  = 1 << 16,
-    IS_RESERVED_15  = 1 << 17,
     IS_RESERVED_16  = 1 << 18,
     IS_RESERVED_17  = 1 << 19,
     IS_RESERVED_18  = 1 << 20,
@@ -125,20 +143,22 @@ enum State : uint64_t {
     IS_RESERVED_25  = 1 << 27,
     IS_RESERVED_26  = 1 << 28,
     IS_RESERVED_27  = 1 << 29,
-    IS_RESERVED_28  = 1 << 30,
 
     */
 
-    IS_PROCESSED = 1 << 31 // delete?
+    IS_UNIQUE  = 1 << 30, // used in parser while checking for unique names in scope
+
 };
 
 struct File {
+    std::filesystem::path absPath;
+    char* absPathRaw;
     char* name;
     char* buff;
 };
 
 struct Location {
-    File file;
+    File* file;
     int line; // to track current line
     int idx; // current position in buffer
 };
@@ -163,10 +183,35 @@ struct INamed {
 
 };
 
+// sometimes we need to store locations of INamed stuff that 
+// is not describing advanced stuff
+// stuff... stuff...
+struct INamedLoc : INamed {
+
+    Location* loc;
+
+    constexpr INamedLoc(char* const nm, const int nmLn, Location* loc) : 
+        INamed(nm, nmLn),
+        loc(loc)
+    {
+
+    };
+
+};
+
 // LOOK AT : maybe better name
 struct INamedEx : INamed {
-	    
+    
     uint32_t id; // LOOK AT : change to macro for 32bit/64bit
+
+    INamedEx() {};
+    
+    constexpr INamedEx(char* const nm, const int nmLn, const uint32_t id) :
+        INamed(nm, nmLn),
+        id(id)
+    {
+
+    };
 
 };
 

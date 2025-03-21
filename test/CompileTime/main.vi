@@ -6,11 +6,11 @@ embed int x3 = fact(10);
 "14 x 23 = %i;\n" x2;
 "10! = %i;\n" x3;
 
-fcn multiply(int x, int y) => int {
+fcn multiply(int x, int y) -> int {
     return x * y;
 }
 
-fcn fact(int n) => int {
+fcn fact(int n) -> int {
     if n < 1 : return 1;
     return n * fact(n - 1);
 }

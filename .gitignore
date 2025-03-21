@@ -1,12 +1,14 @@
 build/
 doc/*
-theses/*
+thesis/*
 test/*
 out/*
 src/.vscode/
 tmp/*
 
 !doc/doc.html
+!doc/doc_tmp.html
+!doc/build.js
 
 !test/Arrays
 !test/Comments
@@ -20,6 +22,4 @@ tmp/*
 !test/Structs
 !test/Functions
 
-!out/ArrayList.c
-
-!theses/main.pdf
+!thesis/main.pdf
