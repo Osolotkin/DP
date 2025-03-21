@@ -16,11 +16,17 @@ Lets say our compiler exe is compiler.exe and its available.
 Lets say our main file is main.vi.
 
 To compile and run use
-    `compiler.exe run main.vi`
+    ```
+    compiler.exe run main.vi
+    ```
 To just compile use
-    `compiler.exe build main.vi`
+    ```
+    compiler.exe build main.vi
+    ```
 To generate just C code use
-    `compiler.exe translate main.vi`
+    ```
+    compiler.exe translate main.vi
+    ```
 
 In all cases `./out` folder will be generated. 
 There will be located generated C files and exe file if builded.
