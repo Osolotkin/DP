@@ -1,6 +1,11 @@
 
+fcn printArrayLength(int[const] arr) -> int {
+    return arr.length;
+}
+
 // array of constant compile-time known size
 int[2] arr;
+
 arr[0] = 1;
 arr[1] = 2;
 
@@ -8,7 +13,7 @@ arr[1] = 2;
 
 // can be implicitly treated as pointer
 int^ ptr = arr;
-"arr[0]: %i\n" ^ptr;
+"arr: [%i, %i]\n" ^ptr, ^(ptr + 1);
 
 ptr = arr + 1;
 "arr[1]: %i\n" ^ptr;
@@ -23,19 +28,33 @@ ptr = arr + 1;
 //         it is not stored anywhere in memory and 
 //         is passed as hidden argument to a function 
 
-int[2] arr2;
-arr2[0] = 3;
-arr2[1] = 4;
+// also can be initialized with values
+int[] arr2 = [3, 4];
 
 // one can reassign array variable
+// each element is copied
 arr = arr2;
 "arr: [%i, %i]\n" arr[0], arr[1];
 
-// or
+// or using pointer
 arr = ptr;
 "arr: [%i, %i]\n" arr[0], arr[1];
 
-// further more
+// every assignment to array-like variable is viewed as
+// assigning each element with expression on the left side
+// where array-like variables (or pointers in this case) 
+// are treated as elements on corresponding indexes
+// so following will copy arr2 to arr and add 1 to each element
+arr = arr2 + 1;
+"arr: [%i, %i]\n" arr[0], arr[1];
+
+// because of that, pointers cannot be offsetted directly in assignment
+// following will copy ptr + 1 to arr[0] and ptr + 2 to arr[1]
+// and add 1 to each element of arr
+arr = ptr + 1;
+"arr: [%i, %i]\n" arr[0], arr[1];
+
+// size of right side have to be at least as big as left side
 int[4] arr3;
 arr3[0] = 5;
 arr3[1] = 6;
@@ -46,37 +65,31 @@ arr = arr3;
 // length of array always remain the same
 "arr len: %i\n" printArrayLength(arr);
 
+// qualifiers also can be used with arrays
+// they also are related to each element, not the array itself
+const int[] carr = [ 1, 2 ];
+embed int[] earr = [ 3, 4 ];
 
+"const carr: [%i, %i]\n" carr[0], carr[1];
+"const earr: [%i, %i]\n" earr[0], earr[1];
 
-// constant array of constant compile-time known size
-const int[2] carr = { 1, 2 };
-carr[0] = 4;
-
-"const arr: [%i, %i]\n" carr[0], carr[1];
-
-
-
-// constant array of constant compile-time known size
-// with constant compile-time known elements
-embed int[2] earr = { 1, 2 };
-
-"embed arr: [%i, %i]\n" earr[0], earr[1];
-
-
-
-// array of constant run-time known size
+// arrays also can be allocated in runtime
+// it can be done as follows
 int darrLen = 2;
 
 int[const] darr = alloc int[darrLen];
 darr[0] = 1;
 darr[1] = 2;
 
-"dynamic arr: [%i, %i]\n" darr[0], darr[1];
-"dynamic arr len: %i\n" printArrayLength(darr);
+"darr: [%i, %i]\n" darr[0], darr[1];
+"darr len: %i\n" printArrayLength(darr);
+
+// it can be then deallocated
+free(darr);
+"darr: [%i, %i]\n" darr[0], darr[1];
 
 
-
-// array of variable run-time known size
+// if no size is specified, array list is created
 int[] arrList;
 arrList[0] = 1;
 arrList[1] = 2;
@@ -89,8 +102,7 @@ arrList[5] = 6;
 "arrList[5]: %i\n" arrList[5];
 "arrList len: %i\n" printArrayLength(arrList);
 
+// in case of array list it can be useful to also obtain allocated size
+"arrList size: %i\n" arrList.size;
 
-
-fcn printArrayLength(int[const] arr) => int {
-    return arr.length;
-}
+"arr size: %i\n" arr.size;

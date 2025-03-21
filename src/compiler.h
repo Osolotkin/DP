@@ -19,6 +19,7 @@ namespace Compiler {
 
     extern int command;
     extern int outLangs;
+    extern int debugInfo;
     
     int compile();
 

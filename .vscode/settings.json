@@ -1,4 +1,5 @@
 {
+    "C_Cpp.default.cppStandard": "c++20",
     "files.associations": {
         "vector": "cpp",
         "atomic": "cpp",
@@ -60,6 +61,161 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "xutility": "cpp"
-    }
+        "xutility": "cpp",
+        "functions.h": "c",
+        "algorithm": "cpp",
+        "filesystem": "cpp"
+    },
+    "latex-workshop.latex.tools": [
+
+
+        {
+            "name": "latexmk",
+            "command": "latexmk",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-pdf",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul/"
+            }
+        },
+        {
+            "name": "lualatexmk",
+            "command": "latexmk",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-lualatex",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "xelatexmk",
+            "command": "latexmk",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-xelatex",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "latexmk_rconly",
+            "command": "latexmk",
+            "args": [
+                "%DOC%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "pdflatex",
+            "command": "pdflatex",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "%DOC%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "bibtex",
+            "command": "bibtex",
+            "args": [
+                "%DOCFILE%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "rnw2tex",
+            "command": "Rscript",
+            "args": [
+                "-e",
+                "knitr::opts_knit$set(concordance = TRUE); knitr::knit('%DOCFILE_EXT%')"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "jnw2tex",
+            "command": "julia",
+            "args": [
+                "-e",
+                "using Weave; weave(\"%DOC_EXT%\", doctype=\"tex\")"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "jnw2texminted",
+            "command": "julia",
+            "args": [
+                "-e",
+                "using Weave; weave(\"%DOC_EXT%\", doctype=\"texminted\")"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "pnw2tex",
+            "command": "pweave",
+            "args": [
+                "-f",
+                "tex",
+                "%DOC_EXT%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "pnw2texminted",
+            "command": "pweave",
+            "args": [
+                "-f",
+                "texminted",
+                "%DOC_EXT%"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        },
+        {
+            "name": "tectonic",
+            "command": "tectonic",
+            "args": [
+                "--synctex",
+                "--keep-logs",
+                "--print",
+                "%DOC%.tex"
+            ],
+            "env": {
+                "TEXINPUTS": "./tul//:"
+            }
+        }
+    ]
 }

@@ -1,13 +1,48 @@
-#pragma once
+// #pragma once
 
 #include "utils.h"
 #include "globals.h"
+#include "logger.h"
 #include "error.h"
 
 #include <ctype.h>
+#include <filesystem>
+
+#define _AMD64_
+#include <libloaderapi.h>
 
 namespace Utils {
 
+    // hopefully path is not a big one to copy
+    std::filesystem::path getExePath() {
+        
+        std::filesystem::path path;
+
+        #ifdef _WIN32
+            char buffer[MAX_PATH];
+            DWORD result = GetModuleFileNameA(NULL, buffer, MAX_PATH);
+            if (result > 0) {
+                path = std::filesystem::path(buffer).parent_path();
+            } else {
+                Logger::log(Logger::ERROR, "SYSTEM: Failed to get executable path! (GetModuleFileNameA failed)");
+                return {};
+            }
+        #else
+            char buffer[PATH_MAX];
+            ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+            if (len != -1) {
+                buffer[len] = '\0';
+                path = std::filesystem::path(buffer).parent_path(); // Get the folder of the executable
+            } else {
+                Logger::log(Logger::ERROR, "Failed to get executable path! (readlink failed)");
+                return {};
+            }
+        #endif
+
+        return path;
+    
+    }
+    
     // ASCII string
     long str2int(char* const str, const int len, int* endIdx) {
 
@@ -257,6 +292,8 @@ namespace Utils {
                 } else if (nextCh == SCOPE_BEGIN) {
                     // block comment
 
+                    int startIdx = i;
+                    int startLines = lines;
                     int toClose = 1;
 
                     i += 2;
@@ -282,7 +319,16 @@ namespace Utils {
 
                             loc->idx = i;
                             loc->line += lines;
-                            // Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_FILE), loc);
+
+                            if (toClose != 0) {
+                                Location tmp;
+                                tmp.idx = startIdx;
+                                tmp.line = startLines;
+                                tmp.file = loc->file;
+                                Logger::log(Logger::ERROR, ERR_STR(Err::UNTERMINATED_COMMENT), &tmp, 2);
+                                return Err::UNTERMINATED_COMMENT;
+                            }
+                            
                             return Err::UNEXPECTED_END_OF_FILE;
                         
                         }
@@ -309,6 +355,7 @@ namespace Utils {
             } else if (ch == EOL) {
                 lines++;
             } else if (ch == EOS) {
+                //Logger::log(Logger::ERROR, "Unexpected end of file! Showing the start of the relevant section.", loc, 1);
                 loc->idx = i;
                 loc->line += lines;
                 return Err::UNEXPECTED_END_OF_FILE; // maybe special error?
@@ -469,6 +516,45 @@ namespace Utils {
             i++;
 
         }
+
+    }
+
+    inline uint32_t reverse(uint32_t word) {
+        uint32_t rev = 0;
+        rev |= (word & 0xFF) << 24;
+        rev |= ((word >> 8) & 0xFF) << 16;
+        rev |= ((word >> 16) & 0xFF) << 8;
+        rev |= ((word >> 24) & 0xFF);
+        return rev;
+    }
+
+    int match(INamed* const a, INamed* const b) {
+
+        if (a->nameLen != b->nameLen) return 0;
+
+        char* const aName = a->name;
+        char* const bName = b->name;
+        const int len = b->nameLen;
+
+        for (int i = 0; i < len; i++) {
+            if (aName[i] != bName[i]) return 0;
+        }
+
+        return 1;
+        
+    }
+
+    int match(INamed* const a, const char* const b) {
+
+        for (int i = 0; i < a->nameLen; i++) {
+
+            const char chA = a->name[i];
+            const char chB = b[i];
+            if (chB == '\0' || chA != chB) return 0;
+
+        }
+
+        return 1;
 
     }
 

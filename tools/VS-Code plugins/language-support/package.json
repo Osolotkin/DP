@@ -2,6 +2,7 @@
 	"name": "vi",
 	"displayName": "Vi",
 	"description": "Vi",
+	"publisher": "vi-made",
 	"version": "0.0.0",
 	"engines": {
 		"vscode": "*"
@@ -27,9 +28,6 @@
 				"path": "./syntaxes/vi.tmLanguage.json"
 			}
 		]
-	},
-	"__metadata": {
-		"size": 5909
 	},
 	"dependencies": {
 		"vi": "file:"

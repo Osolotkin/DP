@@ -7,6 +7,13 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>
+#include <array>
+
+// as used once lets cook this way
+typedef float float_t;
+typedef double double_t;
+
 
 #include "globals.h"
 
@@ -20,6 +27,7 @@ struct KeyWord;
 
 struct SyntaxNode;
 struct Scope;
+struct FunctionPrototype;
 struct Namespace;
 struct VariableDefinition;
 struct VariableAssignment;
@@ -58,10 +66,12 @@ struct BinaryOperator;
 struct TernaryOperator;
 struct ImportStatement;
 struct Union;
-struct FunctionPrototype;
+struct GetLength;
+struct GetSize;
+struct Catch;
 
 struct ScopeName;
-enum ScopeType;
+enum ScopeType : int;
 
 struct IForeignCode;
 struct CodeBlock;
@@ -75,7 +85,7 @@ struct Pointer;
 struct Array;
 struct Slice;
 
-enum ExpressionType;
+enum ExpressionType : int;
 
 
 
@@ -83,46 +93,13 @@ enum ExpressionType;
 struct Translator {
 
     FILE* mainFile;
+    int debugInfo;
 
     void (*init)                        (char* const dirName);
-    void (*exit)                        ();
-    void (*printScope)                  (FILE* file, int level, Scope* const node, Variable* lvalue);
-    void (*printVariableDefinition)     (FILE* file, int level, VariableDefinition* const node, Variable* lvalue);
-    void (*printVariableAssignment)     (FILE* file, int level, VariableAssignment* const node, Variable* lvalue);
-    void (*printTypeDefinition)         (FILE* file, int level, TypeDefinition* const node, Variable* lvalue);
-    void (*printTypeInitialization)     (FILE* file, int level, TypeInitialization* const node, Variable* lvalue);
-    void (*printStringInitialization)   (FILE* file, int level, StringInitialization* const node, Variable* lvalue);
-    void (*printArrayInitialization)    (FILE* file, int level, ArrayInitialization* const node, Variable* lvalue);
-    void (*printUnion)                  (FILE* file, int level, Union* const node, Variable* lvalue);
-    void (*printErrorSet)               (FILE* file, int level, ErrorSet* const node, Variable* lvalue);
-    void (*printEnumerator)             (FILE* file, int level, Enumerator* const node, Variable* lvalue);
-    void (*printVariable)               (FILE* file, int level, Variable* const node, Variable* lvalue);
-    void (*printFunction)               (FILE* file, int level, Function* const node, Variable* lvalue);
-    void (*printBranch)                 (FILE* file, int level, Branch* const node, Variable* lvalue);
-    void (*printSwitchCase)             (FILE* file, int level, SwitchCase* const node, Variable* lvalue);
-    void (*printWhileLoop)              (FILE* file, int level, WhileLoop* const node, Variable* lvalue);
-    void (*printForLoop)                (FILE* file, int level, ForLoop* const node, Variable* lvalue);
-    void (*printLoop)                   (FILE* file, int level, Loop* const node, Variable* lvalue);
-    void (*printReturnStatement)        (FILE* file, int level, ReturnStatement* const node, Variable* lvalue);
-    void (*printContinueStatement)      (FILE* file, int level, ContinueStatement* const node, Variable* lvalue);
-    void (*printBreakStatement)         (FILE* file, int level, BreakStatement* const node, Variable* lvalue);
-    void (*printGotoStatement)          (FILE* file, int level, GotoStatement* const node, Variable* lvalue);
-    void (*printLabel)                  (FILE* file, int level, Label* const node, Variable* lvalue);
-    void (*printNamespace)              (FILE* file, int level, Namespace* const node, Variable* lvalue);
+    void (*printNode)                   (FILE* file, int level, SyntaxNode* const node, Variable* lvalue);
     void (*printExpression)             (FILE* file, int level, Expression* const node, Variable* lvalue);
-    void (*printWrapperExpression)      (FILE* file, int level, WrapperExpression* const node, Variable* lvalue);
-    void (*printExpressionWrapper)      (FILE* file, int level, ExpressionWrapper* const node, Variable* lvalue);
-    void (*printConstExpression)        (FILE* file, int level, ConstExpression* const node, Variable* lvalue);
-    void (*printOperatorExpression)     (FILE* file, int level, OperatorExpression* const node, Variable* lvalue);
-    void (*printUnaryExpression)        (FILE* file, int level, UnaryExpression* const node, Variable* lvalue);
-    void (*printBinaryExpression)       (FILE* file, int level, BinaryExpression* const node, Variable* lvalue);
-    void (*printTernaryExpression)      (FILE* file, int level, TernaryExpression* const node, Variable* lvalue);
-    void (*printStatement)              (FILE* file, int level, Statement* const node, Variable* lvalue);
-    void (*printFunctionCall)           (FILE* file, int level, FunctionCall* const node, Variable* lvalue);
-    void (*printOperand)                (FILE* file, int level, Operand* const node, Variable* lvalue);
-    void (*printUnaryOperator)          (FILE* file, int level, UnaryOperator* const node, Variable* lvalue);
-    void (*printBinaryOperator)         (FILE* file, int level, BinaryOperator* const node, Variable* lvalue);
-    void (*printTernaryOperator)        (FILE* file, int level, TernaryOperator* const node, Variable* lvalue);
+    void (*printForeignCode)            ();
+    void (*exit)                        ();
 
 };
 
@@ -158,6 +135,8 @@ enum NodeType : int {
     NT_EXPRESSION_WRAPPER,
     NT_ERROR,
     NT_UNION,
+    NT_USING,
+    NT_IMPORT,
 };
 
 
@@ -169,6 +148,7 @@ extern uint64_t internalFunctionUsed;
 enum InternalFunction : uint32_t {
     IF_PRINTF = 1,
     IF_ALLOC  = 2,
+    IF_FREE   = 3,
 };
 
 
@@ -211,8 +191,17 @@ enum KeyWordType : int {
     KW_SWITCH_CASE,
     KW_SWITCH_CASE_CASE,
     KW_ALLOC,
+    KW_FREE,
     KW_ERROR,
     KW_UNION,
+    KW_CATCH,
+    KW_IMPORT,
+    KW_SCOPE,
+};
+
+enum TypedefKeyWord {
+    TKW_STRUCT,
+    TKW_UNION,
 };
 
 enum DirectiveKeyWord : int {
@@ -316,10 +305,233 @@ struct OperatorMap {
 };
 */
 
-// indexed by OperatorEnum
-extern Operator operators[];
+struct Operator {
+    
+    uint32_t word;
+    int rank; // precedence of operator, zero->positive-whatever, high->low *(precedence seems too long for usage)
+    uint64_t flag;
 
-extern const int OPERATORS_COUNT;
+    constexpr Operator(uint32_t w, int r, uint64_t f) : word(w), rank(r), flag(f) {}
+    
+};
+
+// indexed by OperatorEnum
+constexpr auto operators = std::to_array<Operator>({
+    
+    // OP_UNARY_PLUS
+    {
+        '+',
+        4,
+        IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_UNARY_MINUS
+    {
+        '-',
+        4,
+        IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_ADDITION
+    {
+        '+',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_SUBTRACTION
+    {
+        '-',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_MULTIPLICATION
+    {
+        '*',
+        3,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_DIVISION
+    {
+        '/',
+        3,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_MODULO
+    {
+        '%',
+        3,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_GET_ADDRESS
+    {
+        '&',
+        4,
+        IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_GET_VALUE
+    {
+        '*',
+        4,
+        IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_AND
+    {
+        '&',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_OR
+    {
+        '|',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_XOR
+    {
+        '^',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_BITWISE_NEGATION
+    {
+        '~',
+        4,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_SHIFT_RIGHT
+    {
+        toDoubleChar('>', '>'),
+        4,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_SHIFT_LEFT
+    {
+        toDoubleChar('<', '<'),
+        4,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_LESS_THAN
+    {
+        '<',
+        5,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_GREATER_THAN
+    {
+        '>',
+        5,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_LESS_THAN_OR_EQUAL
+    {
+        toDoubleChar('<', '='),
+        5,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_GREATER_THAN_OR_EQUAL
+    {
+        toDoubleChar('>', '='),
+        5,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_EQUAL
+    {
+        '=',
+        5,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_NOT_EQUAL
+    {
+        toDoubleChar('!', '='),
+        5,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_BOOL_AND
+    {
+        toDoubleChar('&', '&'),
+        5,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
+    // OP_BOOL_OR
+    {
+        toDoubleChar('|', '|'),
+        5,
+        IS_UNARY | IS_TWO_CHAR
+    },
+
+    // OP_INCREMENT
+    {
+        toDoubleChar('+', '+'),
+        5,
+        IS_UNARY | IS_TWO_CHAR
+    },
+
+    // OP_DECREMENT
+    {
+        toDoubleChar('-', '-'),
+        5,
+        IS_UNARY | IS_TWO_CHAR
+    },
+
+    // OP_SUBSCRIPT
+    {
+        '[',
+        2,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_MEMBER_SELECTION
+    {
+        '.',
+        1,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_DEREFERENCE_MEMBER_SELECTION
+    {
+        '.',
+        4,
+        IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_NEGATION
+    {
+        '!',
+        4,
+        IS_UNARY | IS_ONE_CHAR
+    },
+
+    // OP_CONCATENATION
+    {
+        toDoubleChar('.', '.'),
+        4,
+        IS_BINARY | IS_TWO_CHAR
+    }
+
+});
+
+// beloved c++
+const std::size_t OPERATORS_COUNT = operators.size();
 
 
 
@@ -331,6 +543,7 @@ extern const int OPERATORS_COUNT;
 struct SyntaxNode {
 
     static Scope* root;
+    static INamed* dir;
 
     static std::vector<LangDef*> langDefs;
     static std::vector<CodeBlock*> codeBlocks;
@@ -344,11 +557,13 @@ struct SyntaxNode {
     static std::vector<Variable*> cmpTimeVars;
     static std::vector<Variable*> arrays;
     static std::vector<Loop*> loops;
+    static std::vector<Label*> labels;
     static std::vector<Variable*> branchExpressions;
     static std::vector<Statement*> statements;
     static std::vector<VariableDefinition*> initializations;
     static std::vector<ReturnStatement*> returnStatements;
     static std::vector<SwitchCase*> switchCases;
+    static std::vector<VariableDefinition*> variableDefinitions;
 
     static std::vector<ErrorSet*> customErrors;
     static std::vector<Union*> unions;
@@ -362,17 +577,20 @@ struct SyntaxNode {
     static std::vector<TypeDefinition*> customDataTypes;
     static std::vector<Enumerator*> enumerators;
 
+    static std::vector<GotoStatement*> gotos;
+
     NodeType type;
     Scope* scope;
     Location* loc;
 
-    SyntaxNode(NodeType nodeType) { type = nodeType; };
+    int parentIdx;
+    uint64_t snFlags; // sn as syntax node
 
-    virtual void print(Translator* const translator, FILE* file, int level) = 0;
-    
+    SyntaxNode(NodeType nodeType) { type = nodeType; snFlags = 0; };
+
 };
 
-enum ScopeType {
+enum ScopeType : int {
     SC_GLOBAL = 1,
     SC_COMMON = 0
 };
@@ -386,33 +604,40 @@ struct Scope : SyntaxNode {
     std::vector<SyntaxNode*> children;
 
     // LOOK AT : unite?
-    std::vector<Variable*> vars;
-    std::vector<VariableDefinition*> defs;
+    //std::vector<Variable*> vars;
+    //std::vector<VariableDefinition*> defs;
+    //std::vector<Scope*> scopes;
+
+    // helps to link variables with definitions.
+    // nodes such as Enumerator, Scope, VariableDefinition...
+    // so we can track their order and dont have to go through all childrens.
+    std::vector<SyntaxNode*> defSearch;
+    
+    std::vector<Variable*> defs; // as vars, so can be searched by name
     std::vector<Function*> fcns;
     std::vector<Union*> unions;
+    std::vector<Label*> labels;
     std::vector<ErrorSet*> customErrors;
     std::vector<TypeDefinition*> customDataTypes; // TODO : do we need it?
     std::vector<Enumerator*> enums; // LOOK AT : maybe unite enum under Variable interface or something
     std::vector<Namespace*> namespaces;
+    std::vector<GotoStatement*> gotos;
 
     Scope() : SyntaxNode(NT_SCOPE) {};
-
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
 struct Namespace : Scope, INamedEx {
 
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 // TODO : think of better name
 struct INamedVar : INamedEx {
-    std::vector<INamed*> scopeNames;
+    std::vector<INamedLoc*> scopeNames;
 };
 
-int validateScopeNames(Scope* sc, std::vector<INamed*> names, Namespace** nspace, ErrorSet** eset);
+int validateScopeNames(Scope* sc, std::vector<INamedLoc*> names, Namespace** nspace, ErrorSet** eset);
+int getLValueLocation(DataTypeEnum dtype, void* dtypeDef, Location* loc); // for error purposes, for now here
 /*
 struct ScopeName : INamedEx {
     // we need to know which scope name we are dealing with to adjust render as 
@@ -432,9 +657,17 @@ enum ScopeType : int {
 };
 */
 
+// only as defSearch
+struct Using : SyntaxNode {
+    Using() : SyntaxNode(NT_USING) {};
+    SyntaxNode* var; // node that is being included
+};
+
 // used for interoperability to keep code of the foreign language
 struct IForeignCode {
     
+    Location* tagLoc;
+
     char* tagStr;
     int tagLen;
 
@@ -447,8 +680,6 @@ struct CodeBlock : IForeignCode, SyntaxNode {
 
     CodeBlock() : SyntaxNode(NT_CODE_BLOCK) {};
 
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 struct Enumerator : SyntaxNode, INamedEx {
@@ -457,8 +688,6 @@ struct Enumerator : SyntaxNode, INamedEx {
     std::vector<Variable*> vars;
 
     Enumerator() : SyntaxNode(NT_ENUMERATOR) {};
-
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
@@ -504,11 +733,10 @@ struct Operand : SyntaxNode {
 
     Operand();
     Operand(Scope* scope);
-    virtual void print(Translator* const translator, FILE* file, int level);
-    
+
 };
 
-enum ExpressionType {
+enum ExpressionType :int {
     EXT_FUNCTION_CALL,
     EXT_UNARY,
     EXT_BINARY,
@@ -517,6 +745,9 @@ enum ExpressionType {
     EXT_STRING_INITIALIZATION,
     EXT_ARRAY_INITIALIZATION,
     EXT_SLICE,
+    EXT_CATCH,
+    EXT_GET_LENGTH,
+    EXT_GET_SIZE,
     EXT_WRAPPER,
 };
 
@@ -530,14 +761,11 @@ struct Expression {
 
     ExpressionType type;
 
-    virtual void print(Translator* const translator, FILE* file, int level = 0) = 0;
-
 };
 
 struct Statement : SyntaxNode {
     Variable* op;
     Statement() : SyntaxNode(NT_STATEMENT) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
 };
 // LOOK AT : is there a better way
 /*
@@ -562,7 +790,9 @@ struct TypeInitialization : Expression {
     std::vector<Variable*> attributes;
     int* idxs; // maps attributes to og indicies in TypeDefinition 
 
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
+    // to fill the rest of the attributes with the same value
+    // if NULL then no filling
+    Variable* fillVar;
 
 };
 
@@ -583,8 +813,6 @@ struct StringInitialization : Expression {
     DataTypeEnum wideDtype;
     int wideLen;
     
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
-
 };
 
 struct ArrayInitialization : Expression {
@@ -595,8 +823,28 @@ struct ArrayInitialization : Expression {
 
     std::vector<Variable*> attributes;
 
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
+};
 
+struct Catch : Expression {
+    
+    Catch() {
+        type = EXT_CATCH;
+    };
+
+    FunctionCall* call;
+    
+    // its either one of these, other is NULL
+    Variable* err;
+    Scope* scope;
+
+};
+
+struct GetLength : Expression {
+    Array* arr;
+};
+
+struct GetSize : Expression {
+    Array* arr;
 };
 
 struct VariableDefinition : SyntaxNode {
@@ -604,9 +852,11 @@ struct VariableDefinition : SyntaxNode {
     Variable* var; // it may be enough
     int flags;
 
+
     // only for custom data types as they will be linked at the end
-    char* dtypeName;
-    int dtypeNameLen;
+    INamedVar* dtype;
+    // char* dtypeName;
+    //int dtypeNameLen;
     
     // if we have Pointer like definition as for example Foo****
     // then lastPtr points to the Foo*
@@ -617,7 +867,6 @@ struct VariableDefinition : SyntaxNode {
     VariableDefinition();
     VariableDefinition(Location* loc);
     VariableDefinition(Variable* var, int flags);
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
@@ -629,10 +878,10 @@ struct VariableAssignment : SyntaxNode {
 
     VariableAssignment();
     VariableAssignment(Location* loc);
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
+extern Variable* zero;
 struct Variable : INamedVar, Operand {
 
     // Variable* parentStruct;
@@ -649,15 +898,21 @@ struct Variable : INamedVar, Operand {
     Variable(Scope* const sc, DataTypeEnum dtype);
     Variable(Scope* const sc, DataTypeEnum dtype, Location* loc);
     Variable(Scope* const sc, DataTypeEnum dtype, char* name, int nameLen);
+    Variable(Scope* const sc, Value value, char* name, int nameLen);
     Variable(Variable* var);
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
-struct Function : SyntaxNode, INamedEx {
-    
+struct FunctionPrototype {
+    int inArgsCnt; // number of arguments form prespective of the language
     std::vector<VariableDefinition*> inArgs;
-    Value outArg;
+    VariableDefinition* outArg;
+};
+
+struct Function : SyntaxNode, FunctionPrototype, INamedEx {
+    
+    //std::vector<VariableDefinition*> inArgs;
+    //Value outArg;
     //std::vector<DataTypeEnum> outArgs; // TODO : !!!!
     std::vector<ReturnStatement*> returns;
 
@@ -668,8 +923,7 @@ struct Function : SyntaxNode, INamedEx {
     int icnt = 0; // counter of function usage by interpreter
     int istackIdx = 0; // 0 is neutral value, no additional stack is used, so indexing is from 1
     
-    char* errorSetName;
-    int errorSetNameLen;
+    INamedVar* errorSetName;
     ErrorSet* errorSet;
     /*
     char* tagStr;
@@ -680,8 +934,7 @@ struct Function : SyntaxNode, INamedEx {
     */
 
     Function() : SyntaxNode(NT_FUNCTION) {};
-    Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, Value* outArg, int internalIdx);
-    virtual void print(Translator* const translator, FILE* file, int level);
+    Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, VariableDefinition* outArg, int internalIdx);
 
 };
 
@@ -696,10 +949,10 @@ struct FunctionCall : Expression, INamedVar {
     };
 
     Function* fcn;
+    Variable* fptr; // for function pointers, meh...
+    int inArgsCnt; // same as Function::inArgsCnt
     std::vector<Variable*> inArgs;
     Variable* outArg;
-
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
 
 };
 
@@ -709,7 +962,6 @@ struct Branch : SyntaxNode {
     std::vector<Variable*> expressions;
     
     Branch() : SyntaxNode(NT_BRANCH) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
@@ -722,7 +974,6 @@ struct SwitchCase : SyntaxNode {
     Scope* elseCase;
 
     SwitchCase() : SyntaxNode(NT_SWITCH_CASE) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
@@ -733,8 +984,6 @@ struct WhileLoop : SyntaxNode {
 
     WhileLoop() : SyntaxNode(NT_WHILE_LOOP) {};
     
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 struct ForLoop : SyntaxNode {
@@ -747,8 +996,6 @@ struct ForLoop : SyntaxNode {
 
     ForLoop() : SyntaxNode(NT_FOR_LOOP) {};
     
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 struct Loop : SyntaxNode {
@@ -760,7 +1007,6 @@ struct Loop : SyntaxNode {
     VariableDefinition* idxDef;
 
     Loop() : SyntaxNode(NT_LOOP) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
@@ -775,33 +1021,26 @@ struct ReturnStatement : SyntaxNode {
 
     ReturnStatement() : SyntaxNode(NT_RETURN_STATEMENT) {};
     
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 struct ContinueStatement : SyntaxNode {
 
     ContinueStatement() : SyntaxNode(NT_CONTINUE_STATEMENT) {};
     
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 struct BreakStatement : SyntaxNode {
 
     BreakStatement() : SyntaxNode(NT_BREAK_STATEMENT) {};
 
-    virtual void print(Translator* const translator, FILE* file, int level);
-
 };
 
 struct GotoStatement : SyntaxNode, INamed {
 
     Location* loc;
+    Label* label;
     
     GotoStatement() : SyntaxNode(NT_GOTO_STATEMENT) {};
-
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
@@ -811,32 +1050,18 @@ struct Label : SyntaxNode, INamed {
 
     Label() : SyntaxNode(NT_LABEL) {};
 
-    virtual void print(Translator* const translator, FILE* file, int level);
-
-};
-
-struct Operator {
-    
-    uint32_t word;
-    int rank; // precedence of operator, zero->positive-whatever, high->low *(precedence seems too long for usage)
-    uint64_t flag;
-    // int (*compare) (Operator* op, uint32_t word);
-
-    // void print(Translator* const translator, const int spaces = 0); // maybe separate function
-
 };
 
 // LOOK AT : think about better name
 // what about ArithmeticExpression??
 struct OperatorExpression : Expression {
     OperatorEnum operType;
-    Operator* oper;
+    // Operator* oper;
 };
 
 struct ExpressionWrapper : SyntaxNode {
     Variable* operand;
     ExpressionWrapper() : SyntaxNode(NT_EXPRESSION_WRAPPER) {};
-    virtual void print(Translator* const translator, FILE* file, int lines);
 };
 
 // LOOK AT : think about better name
@@ -848,8 +1073,6 @@ struct WrapperExpression : Expression {
 
     Variable* operand;
     
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
-
 };
 
 struct UnaryExpression : OperatorExpression {
@@ -859,8 +1082,6 @@ struct UnaryExpression : OperatorExpression {
     };
 
     Variable* operand;
-
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
 
 };
 
@@ -873,8 +1094,6 @@ struct BinaryExpression : OperatorExpression {
     Variable* operandA;
     Variable* operandB;
 
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
-
 };
 
 struct TernaryExpression : BinaryExpression {
@@ -886,8 +1105,6 @@ struct TernaryExpression : BinaryExpression {
     Variable* operandA;
     Variable* operandB;
     Variable* operandC;
-
-    virtual void print(Translator* const translator, FILE* file, int level = 0);
 
 };
 
@@ -927,10 +1144,10 @@ enum DataTypeEnum : int {
 
 const int DATA_TYPES_COUNT = DT_UNDEFINED + 1;
 
-#define IS_INT(x) ((x) >= DT_INT && (x) <= DT_INT_64)
+#define IS_INT(x) ((x) >= DT_INT && (x) <= DT_UINT_64)
 #define IS_FLOAT(x) ((x) >= DT_FLOAT_32 && (x) <= DT_FLOAT_64)
 
-struct DataType : INamed {
+struct DataType : INamedEx {
     
     int size; // in bytes
     int rank;
@@ -940,7 +1157,7 @@ struct DataType : INamed {
         size(0), 
         rank(0),
         
-        INamed(NULL, 0)
+        INamedEx(NULL, 0, 0)
 
     {
     
@@ -951,7 +1168,7 @@ struct DataType : INamed {
         size(sz), 
         rank(rk),
         
-        INamed(wd, wdLen)
+        INamedEx(wd, wdLen, 0)
 
     {
 
@@ -978,29 +1195,29 @@ struct TypeDefinition : DataType, SyntaxNode {
     Function* subscript;
 
     TypeDefinition() : SyntaxNode(NT_TYPE_DEFINITION) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
-struct Union : SyntaxNode, INamedEx {
+// TODO : unite under TypeDefinition?
+struct Union : TypeDefinition {
 
-    std::vector<Variable*> vars;
-
-    Union() : SyntaxNode(NT_UNION) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
+    Union() : TypeDefinition() {
+        type = NT_UNION;
+    };
 
 };
 
 struct ErrorSet : SyntaxNode, INamedEx {
 
+    uint64_t value;
     std::vector<Variable*> vars;
 
     ErrorSet() : SyntaxNode(NT_ERROR) {};
-    virtual void print(Translator* const translator, FILE* file, int level);
 
 };
 
 struct Pointer {
+    Pointer* parentPointer; // so we can walk back
     void* pointsTo;
     DataTypeEnum pointsToEnum;
 };
@@ -1022,13 +1239,6 @@ struct Slice : Expression {
 
     Variable* len = NULL;
 
-    void print(Translator* const translator, FILE* file, int level);
-
-};
-
-struct FunctionPrototype {
-    std::vector<VariableDefinition*> inArgs;
-    VariableDefinition* outArg;
 };
 
 
@@ -1058,7 +1268,7 @@ struct LangDef {
 
 };
 
-struct ImportStatement {
+struct ImportStatement : SyntaxNode {
 
     // name of the importing file
     String fname;
@@ -1073,6 +1283,8 @@ struct ImportStatement {
 
     // root scope of the imports file
     Scope* root;
+
+    ImportStatement() : SyntaxNode(NT_IMPORT) {};
 
 };
 

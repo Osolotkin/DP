@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <iostream>
 #include <string>
@@ -20,6 +21,8 @@
 #include "utils.h"
 #include "logger.h"
 #include "error.h"
+#include <map>
+#include <filesystem>
 
 #define IS_HEX(ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'A' && (ch) <= 'F') || ((ch) >= 'a' && (ch) <= 'f'))
 #define IS_NUMBER(ch) ((ch) >= '0' && (ch) <= '9')
@@ -47,15 +50,18 @@ namespace Parser {
     DataTypeEnum parseNumberLiteral(char* const str, int* idx, uint64_t* out);
     int parseCharLiteral(char* const str, Location* idx, uint64_t* out);
     int parseLanguageTag(char* const str, Location* loc);
-    int parseDataTypeDecorators(const DataTypeEnum dtype, Scope* scope, char* const str, Location* const loc, Variable* var, Pointer** lastPointer);
+    int parseDataTypeDecorators(Scope* scope, char* const str, Location* const loc, Variable* var, Pointer** lastPointer, int include);
     int parseVariableDefinitionLValue(Scope* scope, char* const str, Location* const loc, uint64_t param = 0);
-    int parseRValue(Variable* outVar, char* str, Location* loc, Scope* scope, uint16_t endChar, DataTypeEnum mainDtype = DT_VOID);
+    int parseRValue(Variable* outVar, char* str, Location* loc, Scope* scope, uint16_t endChar);
     int parseFunctionPointer(Scope* scope, char* const str, Location* loc, FunctionPrototype** fcnOut);
     int parseDefinitionAssignment(Scope* scope, char* const str, Location* const loc, VariableDefinition* const def, uint16_t endChar, int includeToScope);
     int parseDataType(Scope* scope, char* str, Location* loc, const int expectQualifier, VariableDefinition* def);
-    
-    int processDataType(const DataTypeEnum dtype, Scope* scope, char* const str, Location* const loc, uint64_t param = 0, uint16_t endChar = STATEMENT_END, VariableDefinition** outVarDef = NULL, const int assignId = 1);
+    int parseScopeNames(INamedVar* var, char* const str, Location* const loc);
+    int parseImport(Scope* sc, char* const str, Location* const loc);
 
+    int processDataType(const DataTypeEnum dtype, Scope* scope, char* const str, Location* const loc, uint64_t param = 0, uint16_t endChar = STATEMENT_END, VariableDefinition** outVarDef = NULL, const int include = 1);
+    int skipScopeNames(char* const str, Location* const loc);
+    
     const KeyWord* findKeyWord(const KeyWord* keyWords, const int keyWordsCount, char* const name, const int nameLen);
     uint32_t findDataType(char* const name, const int nameLen);
 
@@ -65,11 +71,19 @@ namespace Parser {
 
     void copy(Variable* dest, Variable* src);
     void copy(Variable* dest, Variable* src);
+    void copy(Scope* scA, Scope* scB);
+
+    Namespace* getCopy(Namespace* nspace);
+    Function* getCopy(Function* nspace);
 
     void appendScope(Scope* scA, Scope* scB);
     void appendPrefixScope(Scope* scA, Scope* scB);
 
     void stripWrapperExpressions(Variable** op);
+
+    inline void offsetParentIdx(std::vector<SyntaxNode*> vec, const int offset);
+
+    VariableDefinition* createEmptyVariableDefinition();
 
 
 
@@ -80,7 +94,15 @@ namespace Parser {
     // render can easily create separate variable for them 
     uint32_t arrId = 0;
 
-    uint64_t errId = 0;
+    uint64_t errId = 1;
+
+    uint64_t defId = 0;
+
+
+
+    // assigned to a variable to know from which def to start searching
+    // 0 is considered as no index assigned
+    int lastDefIdx = 0;
 
 
 
@@ -125,17 +147,29 @@ namespace Parser {
         {29, KWS_SWITCH_CASE},
         {30, KWS_SWITCH_CASE_CASE},
         {31, KWS_ALLOC},
-        {32, KWS_ERROR},
-        {33, KWS_UNION},
+        {32, KWS_FREE},
+        {33, KWS_ERROR},
+        {34, KWS_UNION},
+        {35, KWS_CATCH},
+        {36, KWS_IMPORT},
+        {37, KWS_SCOPE},
     };
 
     const int KEY_WORDS_COUNT = sizeof(keyWords) / sizeof(KeyWord);
 
 
 
+    const KeyWord typedefKeyWords[] = {
+        {0, KWS_STRUCT},
+        {1, KWS_UNION},
+    };
+
+    const int TYPEDEF_KEY_WORDS_COUNT = sizeof(typedefKeyWords) / sizeof(KeyWord);
+
+
+
     const KeyWord directiveKeyWords[] = {
-        {0, DKWS_LANG_DEF},
-        {1, DKWS_IMPORT}
+        {0, DKWS_LANG_DEF}
     };
 
     const int DIRECTIVE_KEY_WORDS_COUNT = sizeof(directiveKeyWords) / sizeof(KeyWord);
@@ -173,14 +207,14 @@ namespace Parser {
 
         switch (word) {
 
-            case '+'            : return OP_UNARY_PLUS;
-            case '-'            : return OP_UNARY_MINUS;
-            case POINTER_SYMBOL : return OP_GET_VALUE;
-            case ADDRESS_SYMBOL : return OP_GET_ADDRESS;
-            case '++'           : return OP_INCREMENT;
-            case '--'           : return OP_DECREMENT;
-            case '!'            : return OP_NEGATION;
-            default             : return OP_NONE;
+            case operators[OP_UNARY_PLUS].word  : return OP_UNARY_PLUS;
+            case operators[OP_UNARY_MINUS].word : return OP_UNARY_MINUS;
+            case POINTER_SYMBOL                 : return OP_GET_VALUE;
+            case ADDRESS_SYMBOL                 : return OP_GET_ADDRESS;
+            case operators[OP_INCREMENT].word   : return OP_INCREMENT;
+            case operators[OP_DECREMENT].word   : return OP_DECREMENT;
+            case operators[OP_NEGATION].word    : return OP_NEGATION;
+            default                             : return OP_NONE;
         
         }
 
@@ -190,9 +224,9 @@ namespace Parser {
 
         switch (word) {
 
-            case '++'   : return OP_INCREMENT;
-            case '--'   : return OP_DECREMENT;
-            default     : return OP_NONE;
+            case operators[OP_INCREMENT].word   : return OP_INCREMENT;
+            case operators[OP_DECREMENT].word   : return OP_DECREMENT;
+            default                             : return OP_NONE;
         
         }
 
@@ -202,27 +236,27 @@ namespace Parser {
 
         switch (word) {
 
-            case '+'    : return OP_ADDITION;
-            case '-'    : return OP_SUBTRACTION;
-            case '*'    : return OP_MULTIPLICATION;
-            case '/'    : return OP_DIVISION;
-            case '%'    : return OP_MODULO;
-            case '<'    : return OP_LESS_THAN;
-            case '>'    : return OP_GREATER_THAN;
-            case '<='   : return OP_LESS_THAN_OR_EQUAL;
-            case '>='   : return OP_GREATER_THAN_OR_EQUAL;
-            case '=='   : return OP_EQUAL;
-            case '!='   : return OP_NOT_EQUAL;
-            case '&&'   : return OP_BOOL_AND;
-            case '||'   : return OP_BOOL_OR;
-            case '..'   : return OP_CONCATENATION;
-            case '.'    : return OP_MEMBER_SELECTION;
-            case '&'    : return OP_BITWISE_AND;
-            case '|'    : return OP_BITWISE_OR;
-            case '^'    : return OP_BITWISE_XOR;
-            case '~'    : return OP_BITWISE_NEGATION;
-            case '>>'   : return OP_SHIFT_RIGHT;
-            case '<<'   : return OP_SHIFT_LEFT;
+            case operators[OP_ADDITION].word            : return OP_ADDITION;
+            case operators[OP_SUBTRACTION].word         : return OP_SUBTRACTION;
+            case operators[OP_MULTIPLICATION].word      : return OP_MULTIPLICATION;
+            case operators[OP_DIVISION].word            : return OP_DIVISION;
+            case operators[OP_MODULO].word              : return OP_MODULO;
+            case operators[OP_LESS_THAN].word           : return OP_LESS_THAN;
+            case operators[OP_GREATER_THAN].word        : return OP_GREATER_THAN;
+            case operators[OP_LESS_THAN_OR_EQUAL].word  : return OP_LESS_THAN_OR_EQUAL;
+            case operators[OP_GREATER_THAN_OR_EQUAL].word   : return OP_GREATER_THAN_OR_EQUAL;
+            case operators[OP_EQUAL].word               : return OP_EQUAL;
+            case operators[OP_NOT_EQUAL].word           : return OP_NOT_EQUAL;
+            case operators[OP_BOOL_AND].word            : return OP_BOOL_AND;
+            case operators[OP_BOOL_OR].word             : return OP_BOOL_OR;
+            case operators[OP_CONCATENATION].word       : return OP_CONCATENATION;
+            case operators[OP_MEMBER_SELECTION].word    : return OP_MEMBER_SELECTION;
+            case operators[OP_BITWISE_AND].word         : return OP_BITWISE_AND;
+            case operators[OP_BITWISE_OR].word          : return OP_BITWISE_OR;
+            case operators[OP_BITWISE_XOR].word         : return OP_BITWISE_XOR;
+            case operators[OP_BITWISE_NEGATION].word    : return OP_BITWISE_NEGATION;
+            case operators[OP_SHIFT_RIGHT].word         : return OP_SHIFT_RIGHT;
+            case operators[OP_SHIFT_LEFT].word          : return OP_SHIFT_LEFT;
             default     : return OP_NONE;
         
         }
@@ -234,7 +268,7 @@ namespace Parser {
 
 
 
-    // TODO : make it 'static' if its even posible
+    // TODO : make it 'static' if its even possible
     // LOOK AT: move to the syntax.h/.c ?
     Function internalFunctions[] = {
         
@@ -246,11 +280,7 @@ namespace Parser {
                 new VariableDefinition(new Variable(SyntaxNode::root, DT_STRING), 0),
                 new VariableDefinition(new Variable(SyntaxNode::root, DT_MULTIPLE_TYPES), 0)
             }),
-            new Value {
-                DT_VOID,
-                0,
-                NULL
-            },
+            new VariableDefinition(new Variable(SyntaxNode::root, DT_VOID), 0),
             IF_PRINTF
         ),
 
@@ -261,29 +291,110 @@ namespace Parser {
             std::vector<VariableDefinition*>({
                 new VariableDefinition(new Variable(SyntaxNode::root, DT_MULTIPLE_TYPES), 0)
             }),
-            new Value {
-                DT_POINTER,
-                0,
-                NULL
-            },
+            new VariableDefinition(new Variable(SyntaxNode::root, DT_POINTER), 0),
             IF_ALLOC
-        )
+        ),
+
+        Function(
+            SyntaxNode::root,
+            (char *) IFS_FREE,
+            sizeof(IFS_FREE) - 1,
+            std::vector<VariableDefinition*>({
+                new VariableDefinition(new Variable(SyntaxNode::root, DT_POINTER), 0)
+            }),
+            new VariableDefinition(new Variable(SyntaxNode::root, DT_VOID), 0),
+            IF_FREE
+        ),
     
     };
 
+    // import related stuff
+    
+    // abstracted, so we can change the way we identify file
+    struct FileId {
+        uint64_t size;
+        std::filesystem::file_time_type time;
 
-    /*
-    // internal Variables such as null, true, false etc...
-    Variable* internalVariables[] = {
-        VariableDefinition(new Variable(SyntaxNode::root, DT_POINTER, (char*) IVS_NULL, sizeof(IVS_NULL) - 1), IS_CMP_TIME).var
+        bool operator<(const FileId& other) const {
+            return std::tie(size, time) < std::tie(other.size, other.time);
+        }
     };
 
-    const int internalVariablesCount = sizeof(internalVariables) / sizeof(Variable*);
-    */
+    // to represent tree of imports
+    // so we can check for circular imports and log user full path
+    struct ImportNode {
+        FileId* fileId;
+        Scope* fileScope;
+        ImportStatement* import;
+        ImportNode* parent;
+        std::vector<ImportNode*> children;
+    };
 
+    ImportNode* importRoot = new ImportNode;
+    std::map<FileId, Namespace*> parsedFiles;
 
+    int areFileIdEqual(FileId* a, FileId* b) {
+        return a->size == b->size && a->time == b->time;
+    }
 
+    int doesImportExistInPath(ImportNode* pathNode, ImportNode* checkNode) {
+        
+        ImportNode* node = pathNode;
+        while (node) {
+            if (areFileIdEqual(node->fileId, checkNode->fileId)) {
+                return 1;
+            }
+            node = node->parent;
+        }
+
+        return 0;
     
+    }
+
+    void logImportPath(ImportNode* node) {
+        
+        if (node->parent) {
+            logImportPath(node->parent);
+        }
+
+        if (node->import) {
+            Logger::log(Logger::PLAIN, " -> %.*s", NULL, 0, node->import->fname.len, node->import->fname.buff);
+        } else {
+            Logger::log(Logger::PLAIN, " import path: MAIN FILE");
+        }
+
+    }
+
+    // meh
+    std::filesystem::path getPath(String fpath, String fname) {
+        std::string strA(fpath.buff, fpath.len);
+        std::string strB(fname.buff, fname.len);
+        return std::filesystem::path(strA) / std::filesystem::path(strB);
+    }
+
+    // meh
+    FileId* genFileId(std::filesystem::path path) {
+
+        FileId* id = new FileId;
+        id->size = std::filesystem::file_size(path);
+        id->time = std::filesystem::last_write_time(path);
+        
+        return id;
+    
+    }
+
+
+   
+
+    template <typename T, typename O>
+    inline void pushDefLike(std::vector<T> &vec, O* obj) {
+        Utils::push(vec, obj);
+        if (obj->type == NT_SCOPE) {
+            lastDefIdx = 0;
+        } else {
+            lastDefIdx = obj->parentIdx + 1;
+        }//obj->parentIdx + 1;
+    }
 
     int parseFile(char* const flname, Scope* scope, const ScopeType globalScope, Scope* fileScope = NULL) {
         
@@ -292,11 +403,14 @@ namespace Parser {
             return 1;
         }
 
+        std::filesystem::path absPath = std::filesystem::absolute({flname});
         Location location = {
-            {flname, buffer},
+            new File { absPath, NULL, flname, buffer },
             1,
             0
         };
+
+        lastDefIdx = 0;
 
         fileRootScope = fileScope ? fileScope : scope;
         return parseScope(scope, buffer, &location, globalScope);
@@ -320,57 +434,180 @@ namespace Parser {
         SyntaxNode::root = new Scope;
         SyntaxNode::root->fcn = NULL;
         SyntaxNode::root->scope = NULL;
+        SyntaxNode::root->parentIdx = 0;
+        SyntaxNode::dir = new INamed(dirStr, dirLen);
+
+        importRoot->fileId = genFileId(std::string(flname, (int) strlen(flname)));
+        importRoot->fileScope = SyntaxNode::root;
+        importRoot->import = NULL;
+        importRoot->parent = NULL;
 
         internalFunctionUsed = 0;
 
         const int err = parseFile(flname, SyntaxNode::root, SC_GLOBAL);
         if (err != Err::OK) return err;
 
+        ImportNode* currentImportNode = importRoot;
         while (SyntaxNode::imports.size() > 0) {
-            
+            // TODO : compute each type of import per file, so vectors can be reorganized once 
+
             ImportStatement* import = SyntaxNode::imports.back();
             SyntaxNode::imports.pop_back();
 
-            String fname = import->fname;// imports[i]->fname;
-            fname[fname.len] = EOS; // TODO : ?
+            // as namespace, so we can easier switch in the future
+            Namespace* fileScope = new Namespace;
+            fileScope->type = NT_SCOPE;
 
-            // ! TODO !
-            char buff[256];
-            
-            int j = 0;
-            for (; j < dirLen; j++) buff[j] = dirStr[j];
-            for (; j < dirLen + fname.len; j++) buff[j] = fname[j - dirLen];
-            buff[j] = EOS;
-            
+            std::filesystem::path filePath = getPath({ dirStr, dirLen }, import->fname);
+
+            FileId* id = genFileId(filePath);
+            if (parsedFiles.find(*id) != parsedFiles.end()) {
+                fileScope = parsedFiles[*id];
+            } else {
+                const int err = parseFile((char*) filePath.string().c_str(), fileScope, SC_GLOBAL, import->root);
+                if (err != Err::OK) return err;
+            }
+
+            ImportNode* newImportNode = new ImportNode{ id, fileScope, import, currentImportNode };
+            currentImportNode->children.push_back(newImportNode);
+
+            if (doesImportExistInPath(currentImportNode, newImportNode)) {
+                Logger::log(Logger::ERROR, ERR_STR(Err::CIRCULAR_IMPORT), import->loc, import->fname.len);
+                logImportPath(newImportNode);
+                return Err::CIRCULAR_IMPORT;
+            }
+
             switch (import->keyWord) {
                 
                 case -1 : {
-                    
-                    Scope* sc = new Scope;
-                    sc->fcn = currentFunction;
-                    sc->scope = import->root;
-                    const int err = parseFile(buff, sc, SC_GLOBAL, import->root);
-                    if (err != Err::OK) return err;
 
-                    appendPrefixScope(import->root, sc);
-                    // SyntaxNode::root = sc;
+                    // import foo from file
+
+                    int symbolType = -1;
+                    SyntaxNode* symbol = NULL;
+
+                    for (int i = 0; i < fileScope->children.size(); i++) {
+                        
+                        SyntaxNode* node = fileScope->children[i];
+                        if (node->type == NT_NAMESPACE) {
+                            
+                            Namespace* nspace = (Namespace*) node;
+                            if (nspace->nameLen == import->param.len && strncmp(nspace->name, import->param.buff, import->param.len) == 0) {
+                                symbolType = NT_NAMESPACE;
+                                symbol = nspace;
+                                break;
+                            }
+
+                        } else if (node->type == NT_FUNCTION) {
+                            
+                            Function* fcn = (Function*) node;
+                            if (fcn->nameLen == import->param.len && strncmp(fcn->name, import->param.buff, import->param.len) == 0) {
+                                symbolType = NT_FUNCTION;
+                                symbol = fcn;
+                                break;
+                            }
+
+                        }
+
+                    }
+
+                    if (symbolType < 0) {
+                        Logger::log(Logger::ERROR, "Aprepritee symbol not found! Note, only namespaces and functions can be exported.", import->loc, import->param.len);
+                        return Err::UNEXPECTED_SYMBOL;
+                    }
+
+                    switch (symbolType) {
+                        
+                        case NT_NAMESPACE : {
+
+                            Namespace* sc = getCopy((Namespace*) symbol);
+
+                            sc->scope = import->root;
+                            sc->parentIdx = 0;
+        
+                            Utils::pushFornt<SyntaxNode*>(import->root->children, sc);
+                            Utils::pushFornt<Namespace*>(import->root->namespaces, sc); 
+                            
+                            break;
+
+                        }
+
+                        case NT_FUNCTION : {
+                            
+                            Function* fcn = getCopy((Function*) symbol);
+
+                            fcn->scope = import->root;
+                            fcn->parentIdx = 0;
+        
+                            Utils::pushFornt<SyntaxNode*>(import->root->children, fcn);
+                            Utils::pushFornt<Function*>(import->root->fcns, fcn); 
+                            
+                            break;
+
+                        }
+                    
+                        default:
+                            Logger::log(Logger::ERROR, "Aprepritee symbol not found! Note, only namespaces and functions can be exported.", import->loc, import->param.len);
+                            return Err::UNEXPECTED_SYMBOL;
+                    
+                    }
 
                     break;
                 
                 }
 
+                case KW_SCOPE : {
+
+                    Scope* sc = fileScope;
+
+                    sc->scope = import->root;
+                    sc->type = NT_SCOPE;
+                    sc->parentIdx = 0;
+
+                    Utils::pushFornt<SyntaxNode*>(import->root->children, sc);
+
+                    break;
+
+                }
+
+                case KW_FUNCTION : {
+
+                    Function* fcn = new Function();
+                    
+                    fcn->bodyScope = fileScope;
+                    fcn->name = import->param;
+                    fcn->nameLen = import->param.len;
+                    fcn->scope = import->root;
+                    fcn->type = NT_FUNCTION;
+                    fcn->outArg = createEmptyVariableDefinition();
+                    fcn->outArg->var->cvalue.dtypeEnum = DT_VOID;
+                    fcn->parentIdx = 0;
+
+                    // as we importing function, order doesn't matter, so we can push it back
+                    import->root->children.push_back(fcn);
+                    import->root->fcns.push_back(fcn);
+
+                    break;
+
+                }
+
                 case KW_NAMESPACE : {
 
-                    Namespace* sc = new Namespace;
-                    const int err = parseFile(buff, sc, SC_GLOBAL);
-                    if (err != Err::OK) return err;
+                    Namespace* sc = fileScope;
 
                     sc->name = import->param;
                     sc->nameLen = import->param.len;
                     sc->scope = import->root;
+                    sc->type = NT_NAMESPACE;
+                    sc->parentIdx = 0;
 
-                    import->root->children.insert(import->root->children.begin(), sc);
-                    import->root->namespaces.insert(import->root->namespaces.begin(), sc);
+                    // pushDefLike(import->root->defSearch, sc);
+
+                    Utils::pushFornt<SyntaxNode*>(import->root->children, sc);
+                    Utils::pushFornt<Namespace*>(import->root->namespaces, sc);
+                    
+                    // in case of namespace we dont need to update parentIdx for searchDefs
+                    // but may be wrong..
 
                     break;
 
@@ -378,6 +615,8 @@ namespace Parser {
 
 
             }
+
+            currentImportNode = newImportNode;
 
         }
 
@@ -401,8 +640,11 @@ namespace Parser {
         while (1) {
 
             const int oldIdx = loc->idx - 1;
-            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) {
 
+            const int err = Utils::skipWhiteSpacesAndComments(str, loc);
+            if (err < 0) {
+
+                if (err == Err::UNTERMINATED_COMMENT) return Err::UNTERMINATED_COMMENT;
                 if (scopeType == SC_GLOBAL) return Err::OK;
 
                 Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_FILE), loc);
@@ -422,16 +664,22 @@ namespace Parser {
             
             } else if (ch == SCOPE_BEGIN) {
 
-                Scope *newScope = new Scope;
+                Scope* newScope = new Scope;
                 newScope->fcn = currentFunction;
                 newScope->scope = scope;
+                
+                const int localLastDefIdx = lastDefIdx;
+                pushDefLike(scope->defSearch, newScope);
 
                 loc->idx++;
                 const int err = parseScope(newScope, str, loc);
                 if (err < 0) return err;
 
+                lastDefIdx = localLastDefIdx;
+
                 scope->children.push_back(newScope);
-            
+                //pushDefLike(scope->defSearch, newScope);
+
             } else if (ch == SCOPE_END) {
                 
                 if (scopeType != SC_GLOBAL) {
@@ -480,6 +728,7 @@ namespace Parser {
             } else if (ch == '[') {
                 // interoperability - scope
                 
+                Location* tagLoc = getLocationStamp(loc);
                 const int tagLen = parseLanguageTag(str, loc);
                 char* const tagStr = str + loc->idx - tagLen - 1;
 
@@ -510,13 +759,16 @@ namespace Parser {
 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
-                Label* label = new Label;
+                Label* label = new Label();
                 label->loc = getLocationStamp(loc);
                 label->scope = scope;
                 label->name = str + loc->idx;
                 label->nameLen = Utils::findVarEnd(str + loc->idx);
 
                 scope->children.push_back(label);
+                scope->labels.push_back(label);
+                SyntaxNode::labels.push_back(label);
+                //pushDefLike(scope->defSearch, label);
 
                 loc->idx += label->nameLen;
 
@@ -538,26 +790,30 @@ namespace Parser {
                     if (err < 0) return err;
                 
                 } else {
-                    // if not keyword maybe expression, variable assignment or custom dataType, function pointer
+                    // if not keyword maybe expression, variable assignment or custom dataType
 
                     int err;
                     int linesSkipped = 0;
+                    // TODO : mem leak probably
                     Location *const startLoc = getLocationStamp(loc);
 
                     char *const word = str + loc->idx;
-                    const int wordLen = Utils::findVarEnd(word);
+                    err = skipScopeNames(str, loc);
+                    if (err < 0) return err;
+                    const int wordLen = loc->idx - startLoc->idx;
+                    // const int wordLen = Utils::findVarEnd(word);
 
-                    loc->idx += wordLen;
+                    //loc->idx += wordLen;
 
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
                     const char tmpCh = str[loc->idx];
-                    if (!IS_ALLOWED_VARIABLE_CHAR(tmpCh) && tmpCh != POINTER_SYMBOL) {
+                    if (wordLen <= 0 || (!IS_ALLOWED_VARIABLE_CHAR(tmpCh) && tmpCh != POINTER_SYMBOL)) {
 
                         COPY_LOC(loc, startLoc);
 
-                        Variable* const var = new Variable;
-                        var->scope = scope;
+                        Variable* const var = new Variable(scope);
+                        var->loc = startLoc;
                         
                         const int err = parseExpression(var, str, loc, (1 << 8) | '=' + (STATEMENT_END << 8 ));
                         if (err < 0) return err;
@@ -569,10 +825,11 @@ namespace Parser {
                             varAssignment->loc->idx--;
                             varAssignment->scope = scope;
                             varAssignment->lvar = var;
-                            varAssignment->rvar = new Variable;
-                            varAssignment->rvar->scope = scope;
+                            varAssignment->rvar = new Variable(scope);
+                            varAssignment->rvar->loc = getLocationStamp(loc);
 
-                            const int err = parseExpression(varAssignment->rvar, str, loc);
+                            const int err = parseRValue(varAssignment->rvar, str, loc, scope, STATEMENT_END);
+                            // const int err = parseExpression(varAssignment->rvar, str, loc);
                             if (err < 0) return err;
 
                             if (var->cvalue.dtypeEnum == DT_ARRAY) {
@@ -597,17 +854,16 @@ namespace Parser {
                     } else {
 
                         VariableDefinition* varDef;
-                        varDef->dtypeName = word;
-                        varDef->dtypeNameLen = wordLen;
-
-                        err = processDataType(DT_CUSTOM, scope, str, loc, 0, STATEMENT_END, &varDef, DT_CUSTOM);
+                        err = processDataType(DT_CUSTOM, scope, str, loc, 0, STATEMENT_END, &varDef, 1);
                         if (err < 0) return err;
 
-                        varDef->dtypeName = word;
-                        varDef->dtypeNameLen = wordLen;
+                        varDef->dtype = new INamedVar();
+                        parseScopeNames(varDef->dtype, str, startLoc);
                         varDef->loc = startLoc;
 
-                        scope->children.push_back(varDef);
+                        //scope->children.push_back(varDef);
+                        //pushDefLike(scope->defSearch, varDef->var);
+                        //SyntaxNode::variableDefinitions.push_back(varDef);
                         // scope->defs.push_back(varDef);
                         SyntaxNode::customDataTypesReferences.push_back(varDef);
                     
@@ -685,11 +941,14 @@ namespace Parser {
 
         const int startIdx = loc->idx;
         const int keyWord = selectKeyWord(keyWords, KEY_WORDS_COUNT, str, &(loc->idx));
+        
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
         if (keyWord == KW_CONST || keyWord == KW_CMP_TIME) {
             
             param = param | ((keyWord == KW_CONST) ? KW_CONST : KW_CMP_TIME);
             
-            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+            // if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
             defLoc = getLocationStamp(loc);
 
@@ -729,7 +988,9 @@ namespace Parser {
         varDef->flags = param;
 
         Pointer* lastPtr = NULL;
-        parseDataTypeDecorators(dtype, scope, str, loc, var, &lastPtr);
+        var->cvalue.dtypeEnum = dtype;
+        var->cvalue.any = (dtype == DT_CUSTOM) ? NULL : dataTypes + dtype;
+        parseDataTypeDecorators(scope, str, loc, var, &lastPtr, 1);
 
         var->def = varDef;
         var->unrollExpression = 0;
@@ -753,9 +1014,14 @@ namespace Parser {
             *outVarDef = varDef;
         } else {
             scope->children.push_back(varDef);
-            scope->defs.push_back(varDef);
+            pushDefLike(scope->defSearch, varDef->var);
+            //scope->defSearch.push_back(varDef);
+            //scope->defs.push_back(varDef);
         }
-        scope->vars.push_back(var);
+        
+        //scope->defs.push_back(var);
+
+        //scope->vars.push_back(var);
 
         return Err::OK;
 
@@ -825,7 +1091,7 @@ namespace Parser {
                 if (err < 0) return err;
 
                 def->var->cvalue.fcn = fptr;
-                def->var->cvalue.dtypeEnum = (DataTypeEnum) err;
+                def->var->cvalue.dtypeEnum = (DataTypeEnum) DT_FUNCTION;
 
             } else {
 
@@ -833,8 +1099,9 @@ namespace Parser {
                     // dt_custom case
                     def->var->cvalue.dtypeEnum = DT_CUSTOM;
                     def->var->cvalue.any = NULL;
-                    def->dtypeName = dtypeName;
-                    def->dtypeNameLen = dtypeLen;
+                    def->dtype = new INamedVar();
+                    def->dtype->name = dtypeName;
+                    def->dtype->nameLen = dtypeLen;
 
                     SyntaxNode::customDataTypesReferences.push_back(def);
                 } else {
@@ -843,10 +1110,13 @@ namespace Parser {
                 }
             
             }
+        } else {
+            def->var->cvalue.dtypeEnum = dtype;
+            def->var->cvalue.any = (dtype == DT_CUSTOM) ? NULL : dataTypes + dtype;
         }
 
         Pointer* lastPtr = NULL;
-        const int err = parseDataTypeDecorators(dtype, scope, str, loc, def->var, &lastPtr);
+        const int err = parseDataTypeDecorators(scope, str, loc, def->var, &lastPtr, 1);
         if (err < 0) return err;
 
         def->lastPtr = lastPtr;
@@ -868,12 +1138,21 @@ namespace Parser {
         }
 
         loc->idx++;
-            
+        
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+        
+        const char ch = str[loc->idx];
+        if (ch == '-' && str[loc->idx + 1] == '>') {
+            loc->idx += 2;
+            goto fOutArgs;
+        }
+
         while (1) {
             
             if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
             VariableDefinition* def = new VariableDefinition;
+            
             DataTypeEnum dtype = (DataTypeEnum) parseDataType(scope, str, loc, 1, def);
             if (dtype < 0) return dtype;
 
@@ -895,24 +1174,34 @@ namespace Parser {
 
         }
 
+        fOutArgs:
+
         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
-        VariableDefinition* def = new VariableDefinition;
-        DataTypeEnum dtype = (DataTypeEnum) parseDataType(scope, str, loc, 0, def);
-        if (dtype < 0) return dtype;
+        VariableDefinition* def;
+        if (str[loc->idx] != FUNCTION_END) {
+            
+            def = new VariableDefinition;
+            DataTypeEnum dtype = (DataTypeEnum) parseDataType(scope, str, loc, 0, def);
+            if (dtype < 0) return dtype;
+
+            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+            if (str[loc->idx] != FUNCTION_END) {
+                Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 1);
+                return Err::UNEXPECTED_SYMBOL;
+            }
+
+        } else {
+
+            def = createEmptyVariableDefinition();
+        
+        }
 
         fcn->outArg = def;
-
-        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-        if (str[loc->idx] != FUNCTION_END) {
-            Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 1);
-            return Err::UNEXPECTED_SYMBOL;
-        }
+        *fcnOut = fcn;
 
         loc->idx++;
 
-        *fcnOut = fcn;
-        
         return Err::OK;
 
     }
@@ -938,7 +1227,7 @@ namespace Parser {
             
             loc->idx++;
 
-            const int err = parseRValue(def->var, str, loc, scope, endChar, def->var->cvalue.dtypeEnum);
+            const int err = parseRValue(def->var, str, loc, scope, endChar);
             if (err < 0) return err;
 
             if (def->flags & IS_CMP_TIME) SyntaxNode::cmpTimeVars.push_back(def->var);
@@ -964,9 +1253,10 @@ namespace Parser {
 
         if (includeToScope) {
             scope->children.push_back(def);
-            scope->defs.push_back(def);
+            pushDefLike(scope->defSearch, def->var);
+            SyntaxNode::variableDefinitions.push_back(def);
+            scope->defs.push_back(def->var);
         }
-        scope->vars.push_back(def->var);
 
         return Err::OK;
 
@@ -982,6 +1272,42 @@ namespace Parser {
         if (err) return err;
 
         *outVarDef = varDef;
+        return Err::OK;
+
+    }
+
+    int processDataType(
+        const DataTypeEnum dtype, 
+        Scope* const scope, 
+        char* const str, 
+        Location* const loc, 
+        const uint64_t param, 
+        const uint16_t endChar,
+        VariableDefinition** outVarDef,
+        const int include
+    ) {
+
+        VariableDefinition* def = new VariableDefinition(loc);
+        def->var = new Variable(scope);
+        def->var->def = def;
+        def->var->cvalue.dtypeEnum = dtype;
+        def->var->cvalue.any = (dtype == DT_CUSTOM) ? NULL : dataTypes + dtype;
+        def->var->unrollExpression = 0;
+        def->var->expression = NULL;
+        def->flags = param;
+        def->scope = scope;
+
+        Pointer* lastPtr = NULL;
+        int err = parseDataTypeDecorators(scope, str, loc, def->var, &lastPtr, 1);
+        if (err < 0) return err;
+
+        def->lastPtr = lastPtr;
+        def->var->loc = getLocationStamp(loc);
+
+        err = parseDefinitionAssignment(scope, str, loc, def, endChar, include);
+        if (err < 0) return err;
+
+        if (outVarDef) *outVarDef = def;
         return Err::OK;
 
     }
@@ -1005,6 +1331,7 @@ namespace Parser {
                 Function* const fcn = internalFunctions + (IF_PRINTF - 1);
 
                 FunctionCall* fcnCall = new FunctionCall;
+                fcnCall->fptr = NULL;
                 fcnCall->fcn = fcn;
                 fcnCall->name = fcn->name;
                 fcnCall->nameLen = fcn->nameLen;
@@ -1153,7 +1480,7 @@ namespace Parser {
 
             Variable* var = new Variable();
 
-            const int err = parseExpression(var, str, loc, ',]');
+            const int err = parseExpression(var, str, loc, toDoubleChar(',', ']'));
             if (err < 0) return err;
 
             (*initOut)->attributes.push_back(var);
@@ -1242,53 +1569,65 @@ namespace Parser {
 
         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
         const int startIdx = loc->idx;
+        const int startLine = loc->line;
 
-        if (IS_ALLOWED_FIRST_VARIABLE_CHAR(str[loc->idx])) {
-            loc->idx += Utils::findWordEnd(str + loc->idx);
-        }
-        
-        // TODO : ':' to const ref
-        if (startIdx != loc->idx || str[loc->idx] == ':') {
+        loc->idx += Utils::findVarEnd(str + loc->idx);
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
-            if (startIdx != loc->idx && str[loc->idx - 1] == ':') {
-                loc->idx--;
-            } else {
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-            }
+        if (str[loc->idx] == ':' || CMP_TWO_CHARS(str + loc->idx, FILL_THE_REST_SYMBOL)) {
+            // names assumed
 
-            if (str[loc->idx] != ':') {
-                // TODO: ERROR
-            } 
-            
-            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+            loc->idx = startIdx;
+            loc->line = startLine;
 
-            Variable* var = new Variable();
-            var->name = str + startIdx;
-            var->nameLen = loc->idx - startIdx;
+            int hasFillVar = 0;
+            (*dtypeInit)->fillVar = NULL;
 
             while (1) {
-                
-                loc->idx++;
 
-                const int err = parseExpression(var, str, loc, ',}');
-                if (err < 0) return err;
-
-                (*dtypeInit)->attributes.push_back(var);
-
-                if (str[loc->idx - 1] == SCOPE_END) break;
-                
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-
-                var = new Variable();
+                Variable* var = new Variable();
                 var->name = str + loc->idx;
                 var->nameLen = Utils::findVarEnd(var->name);
+                var->loc = getLocationStamp(loc);
+
+                if (var->nameLen == 0) {
+                    
+                    if (!CMP_TWO_CHARS(str + loc->idx, FILL_THE_REST_SYMBOL)) {
+                        Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_ATTRIBUTE_NAME), loc, 1);
+                        return Err::INVALID_ATTRIBUTE_NAME;
+                    }
+                    
+                    if (hasFillVar) {
+                        Logger::log(Logger::ERROR, "Fill the rest symbol can be used only once per initialization!", loc, 2);
+                        return Err::UNEXPECTED_SYMBOL;
+                    }
+
+                    loc->idx += 2;
+                    (*dtypeInit)->fillVar = var;
+                    hasFillVar = 1;
                 
-                loc->idx += var->nameLen;
+                } else {
+                    
+                    (*dtypeInit)->attributes.push_back(var);
+                    loc->idx += var->nameLen;
+                
+                }
+
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
                 if (str[loc->idx] != ':') {
-                    // TODO Error
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 1);
+                    return Err::UNEXPECTED_SYMBOL;
                 }
+
+                loc->idx++;
+
+                const int err = parseExpression(var, str, loc, toDoubleChar(',', '}'));
+                if (err < 0) return err;
+
+                if (str[loc->idx - 1] == SCOPE_END) break;
+
+                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
             }
 
@@ -1298,7 +1637,7 @@ namespace Parser {
                 
                 Variable* var = new Variable();
 
-                const int err = parseExpression(var, str, loc, ',}');
+                const int err = parseExpression(var, str, loc, toDoubleChar(',', '}'));
                 if (err < 0) return err;
 
                 (*dtypeInit)->attributes.push_back(var);
@@ -1323,8 +1662,15 @@ namespace Parser {
 
     // either alloc or expression
     // alloc [DtypeName, omitted if mainDtype >= 0] ['[' Expression defining length ']'] [:] [DtypeInit]
-    int parseRValue(Variable* outVar, char* str, Location* loc, Scope* scope, uint16_t endChar, DataTypeEnum mainDtype) {
+    int parseRValue(Variable* outVar, char* str, Location* loc, Scope* scope, uint16_t endChar) {
         
+        DataTypeEnum mainDtype = outVar->cvalue.dtypeEnum;
+        if (mainDtype == DT_POINTER) {
+            mainDtype = outVar->cvalue.ptr->pointsToEnum;
+        } else if (mainDtype == DT_ARRAY) {
+            mainDtype = outVar->cvalue.arr->pointsToEnum;
+        }
+
         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
         // TODO : remove alloc from keyWords to own collection or just harcode it here
@@ -1361,6 +1707,7 @@ namespace Parser {
             Function* const fcn = internalFunctions + (IF_ALLOC - 1);
 
             FunctionCall* fcnCall = new FunctionCall();
+            fcnCall->fptr = NULL;
             fcnCall->fcn = fcn;
             fcnCall->name = fcn->name;
             fcnCall->nameLen = fcn->nameLen;
@@ -1368,19 +1715,21 @@ namespace Parser {
             fcnCall->outArg->cvalue.dtypeEnum = DT_POINTER;
 
             VariableDefinition* varDef = new VariableDefinition();
-            varDef->dtypeName = dtypeName;
-            varDef->dtypeNameLen = dtypeNameLen;
+            varDef->dtype = new INamedVar();
+            varDef->dtype->name = dtypeName;
+            varDef->dtype->nameLen = dtypeNameLen;
             varDef->scope = scope;
             varDef->loc = getLocationStamp(loc);
 
             Variable* var = new Variable();
             var->def = varDef;
             var->cvalue.dtypeEnum = dtype;
+            var->cvalue.any = (dtype == DT_CUSTOM) ? NULL : dataTypes + dtype;
 
             varDef->var = var;
 
             Pointer* lastPtr = NULL;
-            parseDataTypeDecorators(dtype, scope, str, loc, var, &lastPtr);
+            parseDataTypeDecorators(scope, str, loc, var, &lastPtr, 0);
 
             if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
             if (str[loc->idx] == STATEMENT_BEGIN) {
@@ -1402,6 +1751,8 @@ namespace Parser {
             
             if (var->cvalue.dtypeEnum == DT_CUSTOM) SyntaxNode::customDataTypesReferences.push_back(varDef);
 
+            outVar->snFlags |= IS_ALLOCATION;
+
         } else {
             
             const int err = parseExpression(outVar, str, loc, endChar);
@@ -1414,10 +1765,14 @@ namespace Parser {
     }
     
 
-    int parseDataTypeDecorators(const DataTypeEnum dtype, Scope* scope, char* const str, Location* const loc, Variable* var, Pointer** lastPointer) {
+    // pointers can ocur only before arrays
+    // for now only one array
+    int parseDataTypeDecorators(Scope* scope, char* const str, Location* const loc, Variable* var, Pointer** lastPointer, int include) {
 
-        var->cvalue.dtypeEnum = dtype;
-        var->cvalue.any = (dtype == DT_CUSTOM) ? NULL : dataTypes + dtype;
+        //var->cvalue.dtypeEnum = dtype;
+        //var->cvalue.any = (dtype == DT_CUSTOM) ? NULL : dataTypes + dtype;
+
+        int wasArray = 0;
 
         Pointer* mainPtr = NULL;
         while (1) {
@@ -1426,10 +1781,17 @@ namespace Parser {
             
             const char ch = str[loc->idx];
             if (ch == POINTER_SYMBOL) {
+
+                if (wasArray) {
+                    Logger::log(Logger::ERROR, "Pointer can't be used after array declaration!", loc, 1);
+                    return Err::UNEXPECTED_SYMBOL;
+                }
             
                 Pointer* ptr = new Pointer();
                 if (!mainPtr) *lastPointer = ptr;
+                else mainPtr->parentPointer = ptr;
 
+                ptr->parentPointer = mainPtr;
                 ptr->pointsTo = var->cvalue.any;
                 ptr->pointsToEnum = var->cvalue.dtypeEnum;
 
@@ -1444,10 +1806,18 @@ namespace Parser {
             } else if (ch == ARRAY_BEGIN) {
                 // either const / embed or expression
                 
+                if (wasArray) {
+                    Logger::log(Logger::ERROR, "Multidimensional arrays not allowed!", loc, 1);
+                    return Err::UNEXPECTED_SYMBOL;
+                }
+
+                wasArray = 1;
+
                 loc->idx++;
 
                 Array* arr = new Array;
                 if (!mainPtr) *lastPointer = arr;
+                else mainPtr->parentPointer = arr;
 
                 arr->pointsTo = var->cvalue.any;
                 arr->pointsToEnum = var->cvalue.dtypeEnum;
@@ -1460,7 +1830,7 @@ namespace Parser {
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
                 const int keyWordIdx = selectKeyWord(keyWords, KEY_WORDS_COUNT, str, &(loc->idx));
-                const int kword = keyWords[keyWordIdx].type;
+                const int kword = (keyWordIdx < 0) ? -1 : keyWords[keyWordIdx].type;
                 if (kword == KW_CONST || kword == KW_CMP_TIME) {
 
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
@@ -1476,8 +1846,10 @@ namespace Parser {
                 
                 } else {
 
+                    Logger::mute = 1;
                     const int err = parseExpression(lenVar, str, loc, ARRAY_END);
-                    if (err < 0) return err;
+                    Logger::mute = 0;
+                    if (err < 0 && err != Err::UNEXPECTED_END_OF_EXPRESSION) return err;
 
                     arr->flags = 0;
                     arr->length = lenVar; // var->allocSize = lenVar;
@@ -1490,7 +1862,7 @@ namespace Parser {
                 // var->dtype = (void*) arr;
                 var->flags = 0;
 
-                SyntaxNode::arrays.push_back(var);
+                if (include) SyntaxNode::arrays.push_back(var);
 
             } else {
 
@@ -1500,12 +1872,15 @@ namespace Parser {
 
         }
 
+        return Err::OK;
+
     }
 
     
     // LOOK AT : dont like it, maybe rework at the later stage when more info will be better defined
     // if outVarDef is NULL, then new VariableDefinition will be added to scope.children, otherwise it will be returned
     // endChar is used as two wchars (first 16 bits and last 16 bits) that can end parsing
+    /*
     int processDataType(
         const DataTypeEnum dtype, 
         Scope* scope, 
@@ -1578,15 +1953,19 @@ namespace Parser {
             *outVarDef = varDef;
         } else {
             scope->children.push_back(varDef);
-            scope->defs.push_back(varDef);
+            pushDefLike(scope->defSearch, varDef->var);
+            //scope->defs.push_back(varDef);
         }
-        scope->vars.push_back(var);
+        //scope->vars.push_back(var);
+        scope->defs.push_back(var);
 
         return Err::OK;
 
     }
+    */
 
-    int parseUnion(Scope* scope, char* const str, Location* loc, Union* newUnion, uint64_t param) {
+    /*
+    int parseStructLikeDefinition(Scope* scope, char* const str, Location* loc, std::vector<Variable*> &attributes) {
 
         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
@@ -1600,6 +1979,10 @@ namespace Parser {
         newUnion->scope = scope;
         newUnion->name = name;
         newUnion->nameLen = nameLen;
+        newUnion->loc = getLocationStamp(loc);
+        
+        newUnion->id = defId;
+        defId++;
 
         loc->idx++;
         while (1) {
@@ -1644,43 +2027,44 @@ namespace Parser {
         }
     
     }
+        */
 
     int parseKeyWord(KeyWordType keyWord, Scope *scope, char *const str, Location *loc, uint64_t param) {
 
         switch (keyWord) {
 
             case KW_INT: 
-                return processDataType(DT_INT, scope, str, loc, param);
+                return processDataType(DT_INT, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_INT_8:
-                return processDataType(DT_INT_8, scope, str, loc, param);
+                return processDataType(DT_INT_8, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_INT_16:
-                return processDataType(DT_INT_16, scope, str, loc, param);
+                return processDataType(DT_INT_16, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_INT_32:
-                return processDataType(DT_INT_32, scope, str, loc, param);
+                return processDataType(DT_INT_32, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_INT_64:
-                return processDataType(DT_INT_64, scope, str, loc, param);
+                return processDataType(DT_INT_64, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_UINT_8:
-                return processDataType(DT_UINT_8, scope, str, loc, param);
+                return processDataType(DT_UINT_8, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_UINT_16:
-                return processDataType(DT_UINT_16, scope, str, loc, param);
+                return processDataType(DT_UINT_16, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_UINT_32:
-                return processDataType(DT_UINT_32, scope, str, loc, param);
+                return processDataType(DT_UINT_32, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_UINT_64:
-                return processDataType(DT_UINT_64, scope, str, loc, param);
+                return processDataType(DT_UINT_64, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_FLOAT_32:
-                return processDataType(DT_FLOAT_32, scope, str, loc, param);
+                return processDataType(DT_FLOAT_32, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_FLOAT_64:
-                return processDataType(DT_FLOAT_64, scope, str, loc, param);
+                return processDataType(DT_FLOAT_64, scope, str, loc, param, STATEMENT_END, NULL, 1);
 
             case KW_CMP_TIME: {
 
@@ -1716,15 +2100,17 @@ namespace Parser {
                     loc->idx += dtypeNameLen;
 
                     VariableDefinition* varDef;
-                    const int err = processDataType(DT_CUSTOM, scope, str, loc, param, STATEMENT_END, &varDef);
+                    const int err = processDataType(DT_CUSTOM, scope, str, loc, param, STATEMENT_END, &varDef, 1);
                     if (err < 0) return err;
 
                     varDef->loc = defLoc;
 
-                    varDef->dtypeName = dtypeName;
-                    varDef->dtypeNameLen = dtypeNameLen;
+                    varDef->dtype = new INamedVar();
+                    varDef->dtype->name = dtypeName;
+                    varDef->dtype->nameLen = dtypeNameLen;
 
-                    scope->children.push_back(varDef);
+                    //scope->children.push_back(varDef);
+                    //pushDefLike(scope->defSearch, varDef);
                     SyntaxNode::customDataTypesReferences.push_back(varDef);
 
                 } else {
@@ -1759,7 +2145,9 @@ namespace Parser {
                     if (err < 0) return err;
                     
                     scope->children.push_back(def);
-                    scope->defs.push_back(def);
+                    pushDefLike(scope->defSearch, def->var);
+                    SyntaxNode::variableDefinitions.push_back(def);
+                    scope->defs.push_back(def->var);
 
                     return Err::OK;
                 
@@ -1767,9 +2155,16 @@ namespace Parser {
 
                 Function* fcn;
 
-                Scope* outerScope = new Scope();
-                outerScope->fcn = currentFunction;
-                outerScope->scope = scope;
+                Scope* newScope = new Scope();
+                newScope->fcn = currentFunction;
+                newScope->scope = scope;
+
+                const int localLastDefIdx = lastDefIdx;
+                pushDefLike(scope->defSearch, newScope);
+                
+                //Scope* outerScope = new Scope();
+                //outerScope->fcn = currentFunction;
+                //outerScope->scope = scope;
 
                 //if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
@@ -1780,17 +2175,27 @@ namespace Parser {
                     fcn = new ForeignFunction;
 
                     foreignLang = 1;
+                    Location* tagLoc = getLocationStamp(loc);
                     const int tagLen = parseLanguageTag(str, loc);
 
                     ((ForeignFunction*) fcn)->tagLen = tagLen;
                     ((ForeignFunction*) fcn)->tagStr = str + loc->idx - tagLen - 1;
-
+                    ((ForeignFunction*) fcn)->tagLoc = tagLoc;
+                    tagLoc->idx++;
+                    
                     ASSIGN_ID(fcn);
 
                 } else {
                     fcn = new Function;
                 }
+
+                fcn->inArgsCnt = 0;
                 fcn->scope = scope;
+                fcn->errorSetName = NULL;
+                
+                fcn->outArg = createEmptyVariableDefinition();
+
+                fcn->loc = getLocationStamp(loc);
 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
@@ -1848,46 +2253,17 @@ namespace Parser {
                         break;
                     }
 
+                    fcn->inArgsCnt++;
+
                     VariableDefinition* varDef;
-                    const int err = parseVariableDefinition(outerScope, str, loc, param, CHAR_CAT(')',','), &varDef);
+                    const int err = parseVariableDefinition(newScope, str, loc, param, CHAR_CAT(')',','), &varDef);
                     if (err) return err;
 
-                    if (varDef->var->cvalue.dtypeEnum == DT_ARRAY) {
+                    pushDefLike(newScope->defSearch, varDef->var);
+                    SyntaxNode::variableDefinitions.push_back(varDef);
+                    newScope->defs.push_back(varDef->var);
 
-                        VariableDefinition* lenVarDef = new VariableDefinition;
-                        lenVarDef->var = new Variable(outerScope, DT_INT);
-                        lenVarDef->flags = 0;
-
-                        const int nameLen = varDef->var->nameLen + 3;
-                        char* name = (char*) malloc(nameLen * sizeof(char));
-                        if (!name) {
-                            Logger::log(Logger::ERROR, ERR_STR(Err::MALLOC));
-                            return Err::MALLOC;
-                        }
-
-                        // WARNING : doing asumption, that name len will never be zero!!!
-                        // TODO : get rid of it as we now have id?
-                        memcpy(name, varDef->var->name, varDef->var->nameLen);
-                        *((uint32_t*) (name + (nameLen - 3))) = 0 + 'L' + (((int) 'e') << 8) + (((int) 'n') << 16);
-                       
-                        lenVarDef->var->name = name;
-                        lenVarDef->var->nameLen = nameLen;
-                        lenVarDef->var->def = lenVarDef;
-
-                        ASSIGN_ID(lenVarDef->var);
-
-                        lenVarDef->var->cvalue.dtypeEnum = DT_INT;
-
-                        varDef->var->cvalue.arr->length = lenVarDef->var;// varDef->var->allocSize = lenVarDef->var;
-
-                        fcn->inArgs.push_back(varDef);
-                        fcn->inArgs.push_back(lenVarDef);
-
-                    } else {
-
-                        fcn->inArgs.push_back(varDef);
-                    
-                    }
+                    fcn->inArgs.push_back(varDef);
 
                     if (str[loc->idx - 1] == ',') {
                         //loc->idx++;
@@ -1904,21 +2280,35 @@ namespace Parser {
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
                 
                 {
-                    if (strncmp(str + loc->idx, KWS_USING, Utils::findVarEnd(str + loc->idx))) {
+                    if (strncmp(str + loc->idx, KWS_USING, Utils::findVarEnd(str + loc->idx)) == 0) {
 
+                        loc->idx += strlen(KWS_USING);
                         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
                         
-                        char* name;
-                        int len = Utils::findVarEnd(name);
+                        fcn->errorSetName = new INamedVar();
+                        const int err = parseScopeNames(fcn->errorSetName, str, loc);
+                        if (err < 0) {
+                            return err;
+                        }
+
+                        //char* name = str + loc->idx;
+                        //int len = Utils::findVarEnd(name);
                         
+                        /*
                         if (len <= 0) {
-                            Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_VARIABLE_NAME), loc);
+                            Logger::log(Logger::ERROR, "Error set name expected!", loc, 1);
                             return Err::INVALID_VARIABLE_NAME;
                         }
 
                         fcn->errorSetName = name;
                         fcn->errorSetNameLen = len;
+                        */
 
+                        Using* tmp = new Using();
+                        tmp->var = fcn;
+                        pushDefLike(newScope->defSearch, tmp);
+
+                        //loc->idx += len;
                         if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
                         
                     }
@@ -1991,7 +2381,7 @@ namespace Parser {
 
                     loc->idx += dtypeLen;
 
-                    fcn->outArg.dtypeEnum = (DataTypeEnum) ((dtype == DT_UNDEFINED) ? DT_CUSTOM : dtype);
+                    fcn->outArg->var->cvalue.dtypeEnum = (DataTypeEnum) ((dtype == DT_UNDEFINED) ? DT_CUSTOM : dtype);
 
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
@@ -2042,13 +2432,14 @@ namespace Parser {
                 
                 }
 
-                Scope* newScope = new Scope;
-                newScope->fcn = currentFunction;
-                newScope->scope = outerScope;
+                //Scope* newScope = new Scope;
+                //newScope->fcn = currentFunction;
+                //newScope->scope = outerScope;
 
                 currentFunction = fcn;
                 const int err = parseScope(newScope, str, loc);
                 if (err < 0) return err;
+                lastDefIdx = localLastDefIdx;
                 currentFunction = NULL;
 
                 fcn->bodyScope = newScope;
@@ -2076,8 +2467,13 @@ namespace Parser {
                 err = parseExpression(newOperand, str, loc, CHAR_CAT(STATEMENT_BEGIN, SCOPE_BEGIN));
                 if (err < 0) return err;
 
+                const int localLastDefIdx = lastDefIdx;
+                pushDefLike(scope->defSearch, newScope);
+
                 err = parseScope(newScope, str, loc, SC_COMMON, (str[loc->idx - 1] == STATEMENT_BEGIN) ? 1 : 0);
                 if (err < 0) return err;
+
+                lastDefIdx = localLastDefIdx;
 
                 Branch* branch = new Branch();
                 branch->scope = scope;
@@ -2113,12 +2509,17 @@ namespace Parser {
 
                         loc->idx++;
 
-                        Scope *newScope = new Scope();
+                        Scope* newScope = new Scope();
                         newScope->fcn = currentFunction;
                         newScope->scope = scope;
 
+                        const int localLastDefIdx = lastDefIdx;
+                        pushDefLike(scope->defSearch, newScope);
+
                         err = parseScope(newScope, str, loc, SC_COMMON, (str[loc->idx - 1] == ':') ? 1 : 0);
                         if (err < 0) return err;
+
+                        lastDefIdx = localLastDefIdx;
 
                         branch->scopes.push_back(newScope);
 
@@ -2144,18 +2545,23 @@ namespace Parser {
 
                         loc->idx += wordLen;
 
-                        Scope *newScope = new Scope();
-                        newScope->fcn = currentFunction;
-                        newScope->scope = scope;
-
                         Variable* newOperand = new Variable(scope);
                         newOperand->loc = getLocationStamp(loc);
 
                         err = parseExpression(newOperand, str, loc, CHAR_CAT(STATEMENT_BEGIN, SCOPE_BEGIN));
                         if (err < 0) return err;
 
+                        Scope *newScope = new Scope();
+                        newScope->fcn = currentFunction;
+                        newScope->scope = scope;
+
+                        const int localLastDefIdx = lastDefIdx;
+                        pushDefLike(scope->defSearch, newScope);
+
                         err = parseScope(newScope, str, loc, SC_COMMON, (str[loc->idx - 1] == ':') ? 1 : 0);
                         if (err < 0) return err;
+
+                        lastDefIdx = localLastDefIdx;
 
                         branch->scopes.push_back(newScope);
                         branch->expressions.push_back(newOperand);
@@ -2230,6 +2636,10 @@ namespace Parser {
                     Scope* sc = new Scope;
                     sc->fcn = currentFunction;
                     sc->scope = scope;
+
+                    const int localLastDefIdx = lastDefIdx;
+                    pushDefLike(scope->defSearch, sc);
+
                     if (ch == STATEMENT_BEGIN) {
                         parseScope(sc, str, loc, SC_COMMON, 1); 
                     } else if (ch == SCOPE_BEGIN) {
@@ -2238,6 +2648,8 @@ namespace Parser {
                         Logger::log(Logger::ERROR, "TODO");
                         return Err::UNEXPECTED_SYMBOL;
                     }
+
+                    lastDefIdx = localLastDefIdx;
 
                     if (keyWord->type == KW_ELSE) {
                         switchCase->elseCase = sc;
@@ -2269,6 +2681,9 @@ namespace Parser {
                 outerScope->fcn = currentFunction;
                 outerScope->scope = scope;
 
+                int localLastDefIdx = lastDefIdx;
+                pushDefLike(scope->defSearch, outerScope);
+
                 Scope* bodyScope = new Scope();
                 bodyScope->fcn = currentFunction;
                 bodyScope->scope = outerScope;
@@ -2296,9 +2711,17 @@ namespace Parser {
                 err = parseExpression(actionEx, str, loc, '{');
                 if (err < 0) return err;
 
+                lastDefIdx = localLastDefIdx;
+
+                localLastDefIdx = lastDefIdx;
+                pushDefLike(bodyScope->scope->defSearch, bodyScope);
+
                 currentLoop = loop;
+                
                 err = parseScope(bodyScope, str, loc);
                 if (err < 0) return err;
+                lastDefIdx = localLastDefIdx;
+
                 currentLoop = NULL;
 
                 loop->scope = scope;
@@ -2309,6 +2732,7 @@ namespace Parser {
 
                 outerScope->children.push_back(loop);
                 scope->children.push_back(outerScope);
+                // pushDefLike(scope->defSearch, outerScope);
                 SyntaxNode::branchExpressions.push_back(conditionEx);
 
                 break;
@@ -2326,14 +2750,20 @@ namespace Parser {
                 newScope->fcn = currentFunction;
                 newScope->scope = scope;
 
+                const int localLastDefIdx = lastDefIdx;
+                pushDefLike(scope->defSearch, newScope);
+
                 Variable* newOperand = new Variable(newScope);
 
                 err = parseExpression(newOperand, str, loc, SCOPE_BEGIN);
                 if (err < 0) return err;
 
                 currentLoop = loop;
+                
                 err = parseScope(newScope, str, loc);
                 if (err < 0) return err;
+                lastDefIdx = localLastDefIdx;
+
                 currentLoop = NULL;
 
                 loop->scope = scope;
@@ -2355,10 +2785,13 @@ namespace Parser {
                 gt->scope = scope;
                 gt->name = str + loc->idx;
                 gt->nameLen = Utils::findVarEnd(str + loc->idx);
+                gt->label = NULL;
 
                 loc->idx += gt->nameLen;
 
                 scope->children.push_back(gt);
+                scope->gotos.push_back(gt);
+                SyntaxNode::gotos.push_back(gt);
 
                 break;
             
@@ -2428,6 +2861,9 @@ namespace Parser {
                 enumerator->nameLen = nameLen;
                 enumerator->dtype = dtype;
                 enumerator->loc = getLocationStamp(loc);
+
+                enumerator->id = defId;
+                defId++;
 
                 ASSIGN_ID(enumerator);
 
@@ -2505,6 +2941,7 @@ namespace Parser {
 
                 SyntaxNode::enumerators.push_back(enumerator);
                 scope->children.push_back(enumerator);
+                // Utils::push(scope->defSearch, enumerator);
                 scope->enums.push_back(enumerator);
 
                 break;
@@ -2518,8 +2955,25 @@ namespace Parser {
 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
-                char* const name = str + loc->idx;
-                const int nameLen = Utils::findVarEnd(name);
+                Location* defLoc = getLocationStamp(loc);
+                char* name = str + loc->idx;
+                int nameLen = Utils::findVarEnd(name);
+
+                const KeyWord* keywordType = findKeyWord(typedefKeyWords, TYPEDEF_KEY_WORDS_COUNT, name, nameLen);
+                int keyword = keywordType ? keywordType->type : TKW_STRUCT;
+                if (keyword == TKW_UNION || keywordType) {
+                    
+                    loc->idx += nameLen;
+                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+                    
+                    name = str + loc->idx;
+                    nameLen = Utils::findVarEnd(name);
+                
+                } else {
+                    
+                    keyword = TKW_STRUCT;
+                
+                }
 
                 loc->idx += nameLen;
 
@@ -2530,15 +2984,28 @@ namespace Parser {
                     return Err::UNEXPECTED_SYMBOL;
                 }
 
-                TypeDefinition* newTypeDefinition = new TypeDefinition();
+                TypeDefinition* newTypeDefinition;
+                if (keyword == TKW_STRUCT) {
+                    newTypeDefinition = new TypeDefinition();
+                } else {
+                    newTypeDefinition = new Union();
+                }
+
                 newTypeDefinition->scope = scope;
                 newTypeDefinition->name = name;
                 newTypeDefinition->nameLen = nameLen;
+                newTypeDefinition->parentIdx = SyntaxNode::customDataTypes.size();
+                newTypeDefinition->loc = defLoc;
+                
+                newTypeDefinition->id = defId;
+                defId++;
 
                 SyntaxNode::customDataTypes.push_back(newTypeDefinition);
                 scope->customDataTypes.push_back(newTypeDefinition);
                 scope->children.push_back(newTypeDefinition);
 
+
+                
                 loc->idx++;
                 while (1) {
 
@@ -2555,7 +3022,7 @@ namespace Parser {
                     }
 
                     VariableDefinition* varDef;
-                    err = parseVariableDefinition(scope, str, loc, param, '};', &varDef);
+                    err = parseVariableDefinition(scope, str, loc, param, toDoubleChar('}', ';'), &varDef);
                     if (err) return err;
                     
                     newTypeDefinition->vars.push_back(varDef->var);
@@ -2634,12 +3101,22 @@ namespace Parser {
                 if (str[loc->idx] == SKIP_VARIABLE) {
                     loc->idx++;
                 } else {
+
+                    Variable* newVar = new Variable(scope, DT_INT_64, loc);
+
+                    const int err = parseExpression(newVar, str, loc, CHAR_CAT(',', STATEMENT_END));
+                    if (err < 0) return err;
+
+                    ret->err = newVar;
+                    loc->idx--;
+
+                    /*
                     ErrorSet* err = new ErrorSet();
 
                     err->name = str + loc->idx;
                     err->nameLen = Utils::findVarEnd(err->name);
-
-                    loc->idx += err->nameLen;
+                    */
+                    // loc->idx += err->nameLen;
                 }
 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
@@ -2701,6 +3178,8 @@ namespace Parser {
                 outerScope->fcn = currentFunction;
                 outerScope->scope = scope;
 
+                pushDefLike(scope->defSearch, outerScope);
+
                 loop->scope = outerScope;
 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
@@ -2749,10 +3228,16 @@ namespace Parser {
                 loop->bodyScope = new Scope();
                 loop->bodyScope->fcn = currentFunction;
                 loop->bodyScope->scope = loop->scope;
+
+                const int localLastDefIdx = lastDefIdx;
+                pushDefLike(loop->scope->defSearch, loop->bodyScope);
                 
                 currentLoop = loop;
+                
                 const int err = parseScope(loop->bodyScope, str, loc);
                 if (err < 0) return err;
+                lastDefIdx = localLastDefIdx;
+
                 currentLoop = NULL;
 
                 SyntaxNode::loops.push_back(loop);
@@ -2769,16 +3254,31 @@ namespace Parser {
                     return Err::INVALID_DECLARATION_PLACE;
                 }
 
-                Namespace* nsc = new Namespace;
+                Namespace* nsc = new Namespace();
+                nsc->type = NT_NAMESPACE;
+                nsc->scope = scope;
 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
                 
+                nsc->loc = getLocationStamp(loc);
                 nsc->name = str + loc->idx;
-                nsc->nameLen = Utils::findVarEnd(str);
+                nsc->nameLen = Utils::findVarEnd(nsc->name);
+                
+                const int localLastDefIdx = lastDefIdx;
+                pushDefLike(scope->defSearch, nsc);
 
                 loc->idx += nsc->nameLen;
 
+                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+                if (str[loc->idx] != SCOPE_BEGIN) {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 1);
+                    return Err::UNEXPECTED_SYMBOL;
+                }
+
+                loc->idx++;
+
                 parseScope(nsc, str, loc, SC_COMMON);
+                lastDefIdx = localLastDefIdx;
 
                 scope->children.push_back(nsc);
                 scope->namespaces.push_back(nsc);
@@ -2794,6 +3294,49 @@ namespace Parser {
 
             }
 
+            case KW_FREE : {
+
+                Function* const fcn = internalFunctions + (IF_FREE - 1);
+
+                FunctionCall* fcnCall = new FunctionCall();
+                fcnCall->fptr = NULL;
+                fcnCall->fcn = fcn;
+                fcnCall->name = fcn->name;
+                fcnCall->nameLen = fcn->nameLen;
+                fcnCall->outArg = new Variable();
+                fcnCall->outArg->cvalue.dtypeEnum = DT_VOID;
+                
+                Variable* inVar = new Variable();
+                const int err = parseExpression(inVar, str, loc, STATEMENT_END);
+                if (err < 0) return err;
+
+                fcnCall->inArgsCnt = 1;
+                fcnCall->inArgs.push_back(inVar);
+
+                Variable* wrapper = new Variable(scope);
+                wrapper->loc = getLocationStamp(loc);
+                wrapper->expression = fcnCall;
+
+                Statement* st = new Statement();
+                st->scope = scope;
+                st->op = wrapper;
+
+                SyntaxNode::fcnCalls.push_back(wrapper);
+                scope->children.push_back(st);
+
+                break;
+
+            }
+
+            case KW_IMPORT : {
+
+                const int err = parseImport(scope, str, loc);
+                if (err < 0) return err;
+
+                break;
+            
+            }
+
             case KW_ERROR : {
 
                 ErrorSet* errorSet = new ErrorSet();
@@ -2803,13 +3346,60 @@ namespace Parser {
                 char* name = str + loc->idx;
                 int nameLen = Utils::findVarEnd(name);
 
+                if (nameLen <= 0) {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::MISSING_VARIABLE_NAME), loc, 1);
+                    return Err::MISSING_VARIABLE_NAME;
+                }
+
+                loc->idx += nameLen;
+
+                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
                 if (str[loc->idx] != SCOPE_BEGIN) {
-                    return Err::UNEXPECTED_SYMBOL;
+                    // maybe declaration + initialization
+
+                    VariableDefinition* def = createEmptyVariableDefinition();
+                    def->var->name = name;
+                    def->var->nameLen = nameLen;
+                    def->var->cvalue.dtypeEnum = DT_ERROR;
+                    def->scope = scope;
+
+                    pushDefLike(scope->defSearch, def->var);
+                    
+                    ASSIGN_ID(def->var);
+                        
+                    if (str[loc->idx] == STATEMENT_END) {
+                        
+                        loc->idx++;
+
+                    } else if (str[loc->idx] == '=') {
+                        
+                        loc->idx++;
+                        const int err = parseExpression(def->var, str, loc, STATEMENT_END);
+                        if (err < 0) return err;
+                    
+                    } else {
+
+                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 1);
+                        return Err::UNEXPECTED_SYMBOL;
+                    
+                    }
+
+                    SyntaxNode::variableDefinitions.push_back(def);
+                    scope->defs.push_back(def->var);
+                    scope->children.push_back(def);
+
+                    break;
+
                 }
 
                 errorSet->scope = scope;
                 errorSet->name = name;
                 errorSet->nameLen = nameLen;
+                errorSet->value = errId;
+                errId++;
+
+                ASSIGN_ID(errorSet);
 
                 loc->idx++;
                 while (1) {
@@ -2827,18 +3417,27 @@ namespace Parser {
                     Variable* var = new Variable();
                     var->scope = scope;
                     var->name = str + loc->idx;
-                    var->nameLen = Utils::findVarEnd(name);
-                    var->cvalue.hasValue = 1;
-                    var->cvalue.dtypeEnum = DT_UINT_64;
+                    var->nameLen = Utils::findVarEnd(var->name);
+                    var->loc = getLocationStamp(loc);
+                    var->cvalue.hasValue = 0;
+                    var->cvalue.dtypeEnum = DT_ERROR;
                     var->cvalue.u64 = errId;
                     errId++;
 
+                    // ASSIGN_ID(var);
+
+                    loc->idx += var->nameLen;
+
                     errorSet->vars.push_back(var);
 
-                    ch = str[loc->idx - 1];
+                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
+                    ch = str[loc->idx];
                     if (ch == STATEMENT_END) {
+                        loc->idx++;
                         continue;
                     } else if (ch == SCOPE_END) {
+                        loc->idx++;
                         break;
                     } else {
                         Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
@@ -2856,16 +3455,9 @@ namespace Parser {
             }
 
             case KW_UNION : {
-                
-                Union* newUnion = new Union();
 
-                int err = parseUnion(scope, str, loc, newUnion, param);
-                if (err < 0) return err;
-
-                SyntaxNode::unions.push_back(newUnion);
-                scope->unions.push_back(newUnion);
-                scope->unions.push_back(newUnion);
-
+                Logger::log(Logger::ERROR, "TODO error : Use 'def union' to define union!", loc, 1);
+                return Err::UNEXPECTED_SYMBOL;
                 break;
                 
             }
@@ -3001,76 +3593,163 @@ namespace Parser {
 
             }
 
-            case DKW_IMPORT : {
+        }
 
-                // #import x;
-                //      something like include in c, just copy-paste in place
+        return Err::OK;
 
-                // #import x as namespace n;
-                //      wraps content of file x into namespace n
+    }
 
-                // maybe later???
-                // #import x as scope;
-                // #import x as function foo;
+    int parseImport(Scope* sc, char* const str, Location* const loc) {
 
-                ImportStatement* import = new ImportStatement;
-                import->root = fileRootScope;
+        // import x as namespace n;
+        //      wraps content of file x into namespace n
+
+        // import x as scope;
+        // import x as function foo;
+
+        // import Foo from file;
+
+        ImportStatement* import = new ImportStatement();
+        import->root = fileRootScope;
+        import->scope = sc;
+        
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+        import->loc = getLocationStamp(loc);
+        
+        char* const pnameA = str + loc->idx;
+        const int pnameALen = Utils::findWordEnd(pnameA);
+
+        loc->idx += pnameALen;
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+        
+        if (str[loc->idx] == STATEMENT_END) {
+            import->fname = { pnameA, pnameALen };
+            import->keyWord = (KeyWordType) -1;
+            SyntaxNode::imports.push_back(import);
+            return Err::OK;
+        }
+
+        char* const word = str + loc->idx;
+        const int wordLen = Utils::findVarEnd(word);
+
+        // 0 for as, 1 for from
+        int wordType = 0;
+
+        if (strncmp("as", word, wordLen > 2 ? wordLen : 2) == 0) {
+            
+            loc->idx += 2;
+            wordType = 0;
+
+            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+        
+            const int keyWordIdx = selectKeyWord(keyWords, KEY_WORDS_COUNT, str, &(loc->idx));
+            const int keyWordType = keyWords[keyWordIdx].type;
+            if (keyWordType != KW_NAMESPACE || keyWordType != KW_SCOPE || keyWordType != KW_FUNCTION) {
+                Logger::log(Logger::ERROR, "Unsupported value is used! Use one of the following : 'namespace', 'fcn', 'scope'\n");
+                return Err::UNEXPECTED_SYMBOL;
+            }
+    
+            import->keyWord = (KeyWordType) keyWords[keyWordIdx].type;
+
+        } else if (strncmp("from", word, wordLen > 4 ? wordLen : 4) == 0) {
+            
+            loc->idx += 4;
+            wordType = 1;
+
+        } else {
+
+            Logger::log(Logger::ERROR, "Unexpected word, 'as' or 'from' expected!", loc, 1);
+            return Err::UNEXPECTED_SYMBOL;
+        
+        }
+
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+            
+        char* const pnameB = str + loc->idx;;
+        const int pnameBLen = Utils::findVarEnd(pnameB);
+
+        loc->idx += pnameBLen;
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+        
+        if (str[loc->idx] != STATEMENT_END) {
+            Logger::log(Logger::ERROR, "Unexpexted symbol, %c expected", loc, 1, STATEMENT_END);
+            return Err::UNEXPECTED_SYMBOL;
+        }
+
+        if (wordType == 0) {
+            import->fname = { pnameA, pnameALen };
+            import->param = { pnameB, pnameBLen };
+        } else if (wordType == 1) {
+            import->fname = { pnameB, pnameBLen };
+            import->param = { pnameA, pnameALen };
+            import->keyWord = (KeyWordType) -1;
+        }
+
+        // import->keyWord = (KeyWordType) keyWordIdx;
+        SyntaxNode::imports.push_back(import);
+
+        loc->idx++;
+
+        return Err::OK;
                 
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-                
-                char* const fname = str + loc->idx;
-                const int fnameLen = Utils::findWordEnd(fname);
+    }
 
-                loc->idx += fnameLen;
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-                
-                if (str[loc->idx] == STATEMENT_END) {
-                    import->fname = { fname, fnameLen };
-                    import->keyWord = (KeyWordType) -1;
-                    SyntaxNode::imports.push_back(import);
-                    return Err::OK;
-                }
+    // expects that str starts at word
+    // TODO: better name, as it skips also variable name
+    int skipScopeNames(char* const str, Location* const loc) {
 
-                if (str[loc->idx] != 'a' && str[loc->idx + 1] != 's') {
-                    Logger::log(Logger::ERROR, "Unexpected word, 'as' expected!", loc, 1);
-                    return Err::UNEXPECTED_SYMBOL;
-                }
+        while (1) {
 
+            char* const word = str + loc->idx;
+            const int wordLen = Utils::findVarEnd(word);
+
+            loc->idx += wordLen;
+            
+            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
+            if (CMP_TWO_CHARS(str + loc->idx, SCOPE_RESOLUTION_SYMBOL)) {
                 loc->idx += 2;
-
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-                
-                const int keyWordIdx = selectKeyWord(keyWords, KEY_WORDS_COUNT, str, &(loc->idx));
-                if (keyWords[keyWordIdx].type != KW_NAMESPACE) {
-                    Logger::log(Logger::ERROR, "Unsupported value is used! Use one of the following : 'namespace'\n");
-                    return Err::UNEXPECTED_SYMBOL;
-                }
-
-                import->keyWord = (KeyWordType) keyWords[keyWordIdx].type;
-
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-                
-                char* const pname = str + loc->idx;;
-                const int pnameLen = Utils::findVarEnd(pname);
-
-                loc->idx += pnameLen;
-                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-                
-                if (str[loc->idx] != STATEMENT_END) {
-                    Logger::log(Logger::ERROR, "Unexpexted symbol, %c expected", loc, 1, STATEMENT_END);
-                    return Err::UNEXPECTED_SYMBOL;
-                }
-
-                import->fname = { fname, fnameLen };
-                import->keyWord = (KeyWordType) keyWordIdx;
-                import->param = { pname, pnameLen };
-                SyntaxNode::imports.push_back(import);
-                
-                break;
-
+            } else {
+                loc->idx = (word - str) + wordLen;
+                return Err::OK;
             }
 
+            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
         }
+
+    }
+
+    // already at word start
+    int parseScopeNames(INamedVar* var, char* const str, Location* const loc) {
+
+        Location startLocation = *loc;
+        
+        char* word = str + loc->idx;
+        int wordLen = Utils::findVarEnd(word);
+
+        loc->idx += wordLen;
+
+        if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
+        while (CMP_TWO_CHARS(str + loc->idx, SCOPE_RESOLUTION_SYMBOL)) {
+
+            INamedLoc* scName = new INamedLoc(word, wordLen, getLocationStamp(&startLocation));
+            var->scopeNames.push_back(scName);
+
+            loc->idx += 2;
+            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
+            word = str + loc->idx;
+            wordLen = Utils::findVarEnd(word);
+
+            startLocation = *loc;
+            loc->idx += wordLen;
+            
+        }
+
+        var->name = word;
+        var->nameLen = wordLen;
 
         return Err::OK;
 
@@ -3083,7 +3762,8 @@ namespace Parser {
         G_STRING_LITERAL,
         G_NUMBER_LITERAL,
         G_OPERATOR,
-        G_SUB_EXPRESSION
+        G_CATCH,
+        G_SUB_EXPRESSION,
     };
 
     // expression is something like this
@@ -3104,6 +3784,7 @@ namespace Parser {
         int lastOperator = -1;
         int lastOperandType = DT_UNDEFINED;
         Variable* lastVariable = NULL;
+        FunctionCall* lastFunctionCall = NULL;
 
         const int exclusiveEnd = (endChar >> 8) == 1;
 
@@ -3120,6 +3801,12 @@ namespace Parser {
             if ( ( ch == endCharA && ((!exclusiveEnd || (exclusiveEnd && str[loc->idx + 1] != endCharA))) ) || ch == endCharB) {
                 // end of expression
 
+                if (lastType == G_NONE) {
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_EXPRESSION), loc, 1);
+                    loc->idx++;
+                    return Err::UNEXPECTED_END_OF_EXPRESSION;
+                }
+
                 if (lastType == G_OPERATOR) {
                     Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_EXPRESSION), loc);
                     return Err::UNEXPECTED_END_OF_EXPRESSION;
@@ -3129,8 +3816,12 @@ namespace Parser {
 
                 return Err::OK;
             
-            }
-            else if (ch == '(') {
+            } else if (lastType == G_CATCH) {
+                
+                Logger::log(Logger::ERROR, "TODO error : catch expression cannot be used within other expression!", loc, strlen(KWS_CATCH));
+                return Err::UNEXPECTED_SYMBOL;
+            
+            } else if (ch == '(') {
                 // subexpression start
 
                 Variable* newOperand = new Variable();
@@ -3318,6 +4009,121 @@ namespace Parser {
                             return keyWord->type;
                         }
 
+                        if (keyWord->type == KW_CATCH) {
+                            
+                            if (lastUnaryExpression || lastBinaryExpression) {
+                                Logger::log(Logger::ERROR, "TODO error : catch expression cannot be used within other expression!", loc, strlen(KWS_CATCH));
+                                return Err::UNEXPECTED_SYMBOL;
+                            }
+
+                            if (!lastFunctionCall) {
+                                Logger::log(Logger::ERROR, "TODO error : 'catch' keyword can only be used after function call!", loc, strlen(KWS_CATCH));
+                                return Err::UNEXPECTED_SYMBOL;
+                            }
+
+                            loc->idx += strlen(KWS_CATCH);
+                            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
+                            Catch* cex = new Catch();
+                            cex->call = (FunctionCall*) lastFunctionCall;
+                            
+                            char* name = str + loc->idx;
+                            int nameLen = Utils::findVarEnd(name);
+                            Location* varLoc = getLocationStamp(loc);
+
+                            loc->idx += nameLen;
+
+                            const int retLen = strlen(KWS_RETURN);
+                            const int returnErr = strncmp(KWS_RETURN, name, nameLen > retLen ? nameLen : retLen) == 0;
+                            
+                            if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+                            if (str[loc->idx] == SCOPE_BEGIN || returnErr) {
+                                // local var def
+                                
+                                const int localLastDefIdx = lastDefIdx;
+
+                                Scope* newScope = new Scope();
+                                newScope->scope = operand->scope;
+                                pushDefLike(operand->scope->defSearch, newScope);
+
+                                VariableDefinition* errDef = createEmptyVariableDefinition();
+                                errDef->scope = newScope;
+                                errDef->var->name = name;
+                                errDef->var->nameLen = nameLen;
+                                errDef->var->scope = newScope;
+                                errDef->var->cvalue.dtypeEnum = DT_ERROR;
+                                errDef->var->loc = varLoc;
+
+                                ASSIGN_ID(errDef->var);
+
+                                newScope->defs.push_back(errDef->var);
+                                SyntaxNode::variableDefinitions.push_back(errDef);
+                                pushDefLike(newScope->defSearch, errDef->var);
+
+                                cex->err = errDef->var;
+                                cex->scope = newScope;
+
+                                operand->expression = cex;
+
+                                if (returnErr) {
+                                    // basicly just emulate following
+                                    // .. .. catch err { return _, err; }
+                                    
+                                    ReturnStatement* ret = new ReturnStatement();
+                                    ret->err = errDef->var;
+                                    ret->var = NULL;
+                                    ret->scope = newScope;
+                                    ret->fcn = currentFunction;
+
+                                    newScope->children.push_back(ret);
+                                    SyntaxNode::returnStatements.push_back(ret);
+
+                                    cex->err = errDef->var;
+                                    cex->scope = newScope;
+
+                                    operand->expression = cex;
+                                    lastDefIdx = localLastDefIdx;
+
+                                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+                                    if (str[loc->idx] != STATEMENT_END) {
+                                        Logger::log(Logger::ERROR, "'catch return' expression has to be terminated with ';'!", startLocation);
+                                        return Err::UNEXPECTED_SYMBOL;
+                                    }
+
+                                    loc->idx++;
+
+                                    return Err::OK;
+
+                                }
+
+                                loc->idx++;
+                                parseScope(newScope, str, loc, SC_COMMON);
+                                lastDefIdx = localLastDefIdx;
+                            
+                            } else {
+                                
+                                Variable* var = new Variable(operand->scope, DT_ERROR, loc);
+                                var->name = name;
+                                var->nameLen = nameLen;
+                                var->loc = startLocation;
+                                var->parentIdx = lastDefIdx;
+
+                                SyntaxNode::variables.push_back(var);
+
+                                cex->err = var;
+                                cex->scope = NULL;
+
+                            }
+
+                            operand->expression = cex;
+
+                            // lastType = G_CATCH;
+                            // continue;
+
+                            return Err::OK;
+                            
+                        }
+
                         Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_VARIABLE_NAME), loc, wordLen, "Variable name is matching key word name!");
                         return Err::INVALID_VARIABLE_NAME;
                     }
@@ -3327,10 +4133,10 @@ namespace Parser {
                     loc->idx += wordLen;
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
-                    std::vector<INamed*> scopeNames;
+                    std::vector<INamedLoc*> scopeNames;
                     while (CMP_TWO_CHARS(str + loc->idx, SCOPE_RESOLUTION_SYMBOL)) {
 
-                        INamed* scName = new INamed(word, wordLen);
+                        INamedLoc* scName = new INamedLoc(word, wordLen, startLocation);
                         scopeNames.push_back(scName);
 
                         loc->idx += 2;
@@ -3339,6 +4145,7 @@ namespace Parser {
                         word = str + loc->idx;
                         wordLen = Utils::findVarEnd(word);
 
+                        startLocation = getLocationStamp(loc);
                         loc->idx += wordLen;
                         
                     }
@@ -3360,6 +4167,7 @@ namespace Parser {
 
                         if (lastOperator != OP_MEMBER_SELECTION) { 
                             lastVariable = var;
+                            var->parentIdx = lastDefIdx;
                             SyntaxNode::variables.push_back(var);
                         } else {
                             var->cvalue.dtypeEnum = DT_MEMBER;
@@ -3387,10 +4195,13 @@ namespace Parser {
                     } else {
 
                         FunctionCall* fcnCall = new FunctionCall;
+                        fcnCall->fptr = NULL;
                         fcnCall->fcn = NULL;
                         fcnCall->name = word;
                         fcnCall->nameLen = wordLen;
                         fcnCall->scopeNames = scopeNames;
+
+                        lastFunctionCall = fcnCall;
 
                         // parse input
                         loc->idx += 1;
@@ -3423,6 +4234,8 @@ namespace Parser {
 
                         }
 
+                        fcnCall->inArgsCnt = fcnCall->inArgs.size();
+
                         Variable* newOperand = new Variable;
                         newOperand->cvalue.dtypeEnum = DT_UNDEFINED;
                         newOperand->expression = fcnCall;
@@ -3430,6 +4243,7 @@ namespace Parser {
                         newOperand->unrollExpression = 1;
                         newOperand->cvalue.ptr = NULL;
                         newOperand->loc = startLocation;
+                        newOperand->parentIdx = lastDefIdx;
 
                         if (lastType == G_NONE) {
 
@@ -3569,7 +4383,7 @@ namespace Parser {
                     BinaryExpression* bEx = new BinaryExpression;
                     bEx->operandB = idxOperand;
                     bEx->operType = OP_SUBSCRIPT;
-                    bEx->oper = operators + OP_SUBSCRIPT;
+                    // bEx->oper = operators + OP_SUBSCRIPT;
 
                     Variable* newOperand = new Variable();
                     newOperand->cvalue.dtypeEnum = DT_UNDEFINED;
@@ -3582,7 +4396,7 @@ namespace Parser {
                         bEx->operandA = ((UnaryExpression*) (operand->expression))->operand;
                         ((UnaryExpression*) (operand->expression))->operand = newOperand;
                     } else if (lastBinaryExpression) {
-                        if (lastOperatorRank >= (operators + OP_SUBSCRIPT)->rank) {
+                        if (lastOperatorRank >= operators[OP_SUBSCRIPT].rank) {
                             bEx->operandA = ((BinaryExpression*) (operand->expression))->operandB;
                             ((BinaryExpression*) (operand->expression))->operandB = newOperand;
                         } else {
@@ -3631,7 +4445,7 @@ namespace Parser {
                         UnaryExpression* uEx = new UnaryExpression;
                         uEx->operand = NULL;
                         uEx->operType = opType;
-                        uEx->oper = operators + opType;
+                        // uEx->oper = operators + opType;
 
                         operand->expression = uEx;
                         lastUnaryExpression = uEx;
@@ -3648,7 +4462,7 @@ namespace Parser {
                         UnaryExpression* uEx = new UnaryExpression;
                         uEx->operand = NULL;
                         uEx->operType = opType;
-                        uEx->oper = operators + opType;
+                        // uEx->oper = operators + opType;
 
                         Variable* newVar = new Variable(loc);
                         newVar->scope = operand->scope;
@@ -3672,7 +4486,7 @@ namespace Parser {
                         UnaryExpression* uEx = new UnaryExpression;
                         uEx->operand = newVar;
                         uEx->operType = opType;
-                        uEx->oper = operators + opType;
+                        // uEx->oper = operators + opType;
 
                         operand->expression = uEx;
 
@@ -3687,7 +4501,7 @@ namespace Parser {
                             return Err::INVALID_OPERATOR;
                         }
 
-                        Operator* op = operators + opType;
+                        Operator op = operators[opType];
 
                         lastUnaryExpression = NULL;
 
@@ -3697,7 +4511,7 @@ namespace Parser {
                         newVar->scope = operand->scope;
 
                         // LOOK_AT: maybe change design to allways somehow have root as expression, so we dont have to check or something
-                        const int operatorRank = op->rank;
+                        const int operatorRank = op.rank;
                         if (lastOperatorRank > operatorRank) {
 
                             newVar->expression = bEx;
@@ -3726,7 +4540,7 @@ namespace Parser {
                         operand->expression = bEx;
                         bEx->operandB = NULL;
                         bEx->operType = opType;
-                        bEx->oper = op;
+                        // bEx->oper = op;
 
                         lastOperatorRank = operatorRank;
                         lastBinaryExpression = bEx;
@@ -3747,6 +4561,24 @@ namespace Parser {
         
         }
     
+    }
+
+    VariableDefinition* createEmptyVariableDefinition() {
+
+        VariableDefinition* def = new VariableDefinition();
+        def->flags = 0;
+        def->lastPtr = NULL;
+        def->dtype = NULL;
+
+        def->var = new Variable();
+        def->var->cvalue.any = NULL;
+        def->var->cvalue.dtypeEnum = DT_VOID;
+        def->var->cvalue.hasValue = 0;
+
+        def->var->def = def;
+
+        return def;
+
     }
 
     // better name?
@@ -3780,7 +4612,7 @@ namespace Parser {
                 *dest = new Variable();
                 (*dest)->expression = duex;
 
-                duex->oper = uex->oper;
+                // duex->oper = uex->oper;
                 duex->operType = uex->operType;
                 
                 return copyExpression((Variable*) uex->operand, (Variable**) &(duex->operand), pidx, nextIdx);
@@ -3797,7 +4629,7 @@ namespace Parser {
                 *dest = new Variable();
                 (*dest)->expression = dbex;
                 
-                dbex->oper = bex->oper;
+                // dbex->oper = bex->oper;
                 dbex->operType = bex->operType;
 
                 copyExpression((Variable*) bex->operandA, (Variable**) &(dbex->operandA), pidx, nextIdx);
@@ -3830,6 +4662,7 @@ namespace Parser {
                 FunctionCall* fex = (FunctionCall*) ex;
                 FunctionCall* dfex = new FunctionCall();
 
+                dfex->fptr = fex->fptr;
                 dfex->fcn = fex->fcn;
                 dfex->name = fex->name;
                 dfex->nameLen = fex->nameLen;
@@ -4060,7 +4893,7 @@ namespace Parser {
                 if (ch >= '0' && ch <= '9') num = num * 16 + (ch - '0');
                 else if (ch >= 'A' && ch <= 'F') num = num * 16 + (10 + ch - 'A');
                 else if (ch >= 'a' && ch <= 'f') num = num * 16 + (10 + ch - 'a');
-                else if (ch >= '_') {
+                else if (ch == '_') {
                     if (str[i + 1] == '_') return DT_VOID;
                 } else {
                     *idx += i;
@@ -4078,7 +4911,7 @@ namespace Parser {
 
                 const char ch = str[i];
                 if (ch == '0' || ch == '1') num = num * 2 + (ch - '0');
-                else if (ch >= '_') {
+                else if (ch == '_') {
                     if (str[i + 1] == '_') return DT_VOID;
                 } else {
                     *idx += i;
@@ -4112,7 +4945,7 @@ namespace Parser {
                             *((float_t *)out) = (float_t) (integer + (decimal / (double) base));
                             return DT_FLOAT_32;
                             
-                        }   else if (ch >= '_') {
+                        }   else if (ch == '_') {
                             
                             if (str[i + 1] == '_') return DT_VOID;
                         
@@ -4134,7 +4967,7 @@ namespace Parser {
                     *((float_t *) out) = (float_t) integer;
                     return DT_FLOAT_32;
                     
-                } else if (ch >= '_') {
+                } else if (ch == '_') {
                     
                     if (str[i + 1] == '_') return DT_VOID;
                     
@@ -4238,9 +5071,62 @@ namespace Parser {
     }
     */
 
+    inline void offsetParentIdx(std::vector<SyntaxNode*> vec, const int offset) {
+        for (int i = 0; i < vec.size(); i++) {
+            vec[i]->parentIdx += offset;
+        }
+    }
+
+    Namespace* getCopy(Namespace* nspace) {
+
+        Namespace* newNspace = new Namespace();
+        memcpy(newNspace, nspace, sizeof(Namespace));
+
+        return newNspace;
+
+    }
+
+    Function* getCopy(Function* fcn) {
+
+        Function* newFcn = new Function();
+        memcpy(newFcn, fcn, sizeof(Function));
+
+        return newFcn;
+
+    }
+
+    void copy(Scope* scA, Scope* scB) {
+        
+        Scope* parent = scB->scope;
+
+        scA->type = scB->type;
+        scA->scope = scB->scope;
+        scA->loc = scB->loc;
+        scA->parentIdx = scB->parentIdx;
+        scA->snFlags = scB->snFlags;
+
+        scA->children = scB->children;
+        
+        scA->fcn = scB->fcn;
+
+        scA->defSearch = scB->defSearch;
+        scA->defs = scB->defs;
+        scA->fcns = scB->fcns;
+        scA->unions = scB->unions;
+        scA->labels = scB->labels;
+        scA->customErrors = scB->customErrors;
+        scA->customDataTypes = scB->customDataTypes;
+        scA->enums = scB->enums;
+        scA->namespaces = scB->namespaces;
+        scA->gotos = scB->gotos;
+
+    }
+
+    #define appendVectors(a, b) (a).insert(std::begin(a), std::begin(b), std::end(b))
+        
     // appends scB to scA
     void appendScope(Scope* scA, Scope* scB) {
-        #define appendVectors(a, b) (a).insert(std::end(a), std::begin(b), std::end(b))
+        // #define appendVectors(a, b) (a).insert(std::end(a), std::begin(b), std::end(b))
         appendVectors(scA->children, scB->children);
         appendVectors(scA->codeBlocks, scB->codeBlocks);
         appendVectors(scA->customDataTypes, scB->customDataTypes);
@@ -4249,20 +5135,27 @@ namespace Parser {
         appendVectors(scA->foreignFunctions, scB->foreignFunctions);
         appendVectors(scA->langDefs, scB->langDefs);
         appendVectors(scA->namespaces, scB->namespaces);
+
+        appendVectors(scA->defSearch, scB->defSearch);
+        offsetParentIdx(scB->defSearch, scA->defSearch.size());
     }
 
     // appends scB  infront of scA
     void appendPrefixScope(Scope* scA, Scope* scB) {
-        #define appendVectors(a, b) (a).insert(std::begin(a), std::begin(b), std::end(b))
+        // #define appendVectors(a, b) (a).insert(std::begin(a), std::begin(b), std::end(b))
         appendVectors(scA->children, scB->children);
         appendVectors(scA->codeBlocks, scB->codeBlocks);
         appendVectors(scA->customDataTypes, scB->customDataTypes);
         appendVectors(scA->enums, scB->enums);
-        appendVectors(scA->vars, scB->vars);
+        //appendVectors(scA->vars, scB->vars);
+        appendVectors(scA->defs, scB->defs);
         appendVectors(scA->fcns, scB->fcns);
         appendVectors(scA->foreignFunctions, scB->foreignFunctions);
         appendVectors(scA->langDefs, scB->langDefs);
         appendVectors(scA->namespaces, scB->namespaces);
+
+        appendVectors(scB->defSearch, scA->defSearch);
+        offsetParentIdx(scA->defSearch, scB->defSearch.size());
     }
 
 }

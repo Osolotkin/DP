@@ -1,4 +1,4 @@
-#pragma once
+// #pragma once
 
 #include "interpreter.h"
 #include "syntax.h"
@@ -1003,6 +1003,8 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
             }
 
         }
+
+        return Err::OK;
 
     }
 
