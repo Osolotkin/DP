@@ -245,7 +245,7 @@ namespace Validator {
                 Variable* const var = def->vars[i];
 
                 if (isUnion && var->expression || var->cvalue.hasValue) {
-                    Logger::log(Logger::ERROR, "Default values are not alowed within union initialization!", var->loc, var->nameLen);
+                    Logger::log(Logger::ERROR, "Default values are not allowed within union initialization!", var->loc, var->nameLen);
                     return Err::INVALID_RVALUE;
                 }
 
