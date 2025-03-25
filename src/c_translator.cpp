@@ -59,26 +59,26 @@ const char* const dtypePostfix[] = {
 
 
 
-// TODO : move to utils or globals
-// #define POSIX 0
-#define WINDOWS 1
 
 // 0 on success
-#ifdef POSIX
-    int newdir(char* const path) {
-        mkdir(path, 0777);
-    }
-#elif WINDOWS
-    #include <direct.h>
-#include <filesystem>
-    int newDir(char* const path) {
-        if (_mkdir(path)) {
-            return (errno != EEXIST);
-        }
+int newDir(char* const path) {
+    try {
+        std::filesystem::create_directory(path);
         return 0;
+    } catch (Expression* ex) {
+        return 1;
     }
-#endif
+}
 
+// 0 on success
+int chdir(char* const path) {
+    try {
+        std::filesystem::current_path(path);
+        return 0;
+    } catch (Expression* ex) {
+        return 1;
+    }
+}
 
 
 

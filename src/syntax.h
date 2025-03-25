@@ -728,7 +728,7 @@ struct Operand : SyntaxNode {
     std::vector<Value> istack;
     // std::vector<ScopeName*> scopeNames;
 
-    int unrollExpression; // LOOk AT : maybe get rid of Operand itself and use Variable instead as before? or have two types of operand constant and dynamic?
+    int unrollExpression; // DEPRECATED: should be removed so code should rly fully on Value interface!!!!! LOOk AT : maybe get rid of Operand itself and use Variable instead as before? or have two types of operand constant and dynamic?
     Expression* expression;
 
     Operand();
