@@ -254,7 +254,7 @@ void printOperandValue(Operand* op) {
         }
 
         case DT_INT_64 : {
-            printf("%i", op->cvalue.i64);
+            printf("%li", op->cvalue.i64);
             break;
         }
 
@@ -269,7 +269,7 @@ void printOperandValue(Operand* op) {
         }
 
         case DT_STRING : {
-            printf("\"%s\"", op->cvalue.str);
+            printf("\"%s\"", (char*) op->cvalue.str);
             break;
         }
 
@@ -497,10 +497,10 @@ void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Vari
         // TODO : cleanup
         if (var->cvalue.dtypeEnum != DT_CUSTOM) {
             DataType* const dtype = dataTypes + var->cvalue.dtypeEnum; 
-            printf("%s\t%.*s %.*s = %i,\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
+            printf("%s\t%.*s %.*s = %li,\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
         } else {
             TypeDefinition* const dtype = var->cvalue.def; 
-            printf("%s\t%.*s %.*s = %i,\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);    
+            printf("%s\t%.*s %.*s = %li,\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);    
         }
 
     }
@@ -511,10 +511,10 @@ void printTypeDefinition(FILE* file, int level, TypeDefinition* const node, Vari
         
         if (var->cvalue.dtypeEnum != DT_CUSTOM) {
             DataType* const dtype = dataTypes + var->cvalue.dtypeEnum; 
-            printf("%s\t%.*s %.*s = %i\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
+            printf("%s\t%.*s %.*s = %li\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
         } else {
             TypeDefinition* const dtype = var->cvalue.def; 
-            printf("%s\t%.*s %.*s = %i\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
+            printf("%s\t%.*s %.*s = %li\n", tab, dtype->nameLen, dtype->name, var->nameLen, var->name, var->cvalue.i64);
         }
     }
     
@@ -608,12 +608,12 @@ void printEnumerator(FILE* file, int level, Enumerator* const node, Variable* lv
     
     for (int i = 0; i < lastIdx; i++) {
         Variable* const var = node->vars[i];
-        printf("%s\t%.*s = %d,\n", tab, var->nameLen, var->name, var->cvalue.i64);
+        printf("%s\t%.*s = %li,\n", tab, var->nameLen, var->name, var->cvalue.i64);
     }
 
     if (lastIdx - 1 >= 0) {
         Variable* const var = node->vars[lastIdx];
-        printf("%s\t%.*s = %i\n", tab, var->nameLen, var->name, var->cvalue.i64);
+        printf("%s\t%.*s = %li\n", tab, var->nameLen, var->name, var->cvalue.i64);
     }
     
     printf("%s}\n", tab);

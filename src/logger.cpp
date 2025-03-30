@@ -12,7 +12,11 @@
 #define TAB_SIZE 4
 
 #define RED_ESC "\033[1;31m"
+#define YELLOW_ESC "\033[1;33m"
 #define COLOR_RESET_ESC "\033[0m"
+
+#define ERR_ESC RED_ESC
+#define WARNING_ESC YELLOW_ESC
 
 namespace Logger {
 
@@ -75,18 +79,19 @@ namespace Logger {
         switch (type) {
 
             case INFO : {
-                printf("INFO : ");
+                printf("INFO");
                 break;
             }
 
             case WARNING : {
-                printf("WARNING : ");
+                underlineEscColor = WARNING_ESC;
+                printf(WARNING_ESC "\nWARNING" COLOR_RESET_ESC);
                 break;
             }
 
             case ERROR : {
-                underlineEscColor = RED_ESC;
-                printf(RED_ESC "\nERROR" COLOR_RESET_ESC);
+                underlineEscColor = ERR_ESC;
+                printf(ERR_ESC "\nERROR" COLOR_RESET_ESC);
                 // printf("(%i, %i) : ", loc->line, idx - lnStartIdx + 1);
                 break;
             }
@@ -98,6 +103,8 @@ namespace Logger {
 
         if (loc) {
             printf("(%i, %i) : ", loc->line, idx - lnStartIdx + 1);
+        } else {
+            if (type != PLAIN) printf(" : ");
         }
 
         va_list args;
@@ -115,7 +122,7 @@ namespace Logger {
 
         printf("%s%.*s\n", numbuff, lnLength, body + lnStartIdx);
         
-        // owful
+        // awful
         const int tabOffset = tabCount * (TAB_SIZE - 1);
         int i = lnStartIdx;
         for (int i = 0; i < strlen(numbuff); i++) putchar(' ');

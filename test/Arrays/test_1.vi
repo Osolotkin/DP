@@ -13,16 +13,18 @@ arr[1] = 2;
 
 // can be implicitly treated as pointer
 int^ ptr = arr;
-"arr: [%i, %i]\n" ^ptr, ^(ptr + 1);
+"ptr = arr\n";
+"^ptr: %i;\n^(ptr + 1): %i;\n" ^ptr, ^(ptr + 1);
 
 ptr = arr + 1;
-"arr[1]: %i\n" ^ptr;
+"ptr = arr + 1\n";
+"^ptr: %i\n" ^ptr;
 
 // array length is obtainable
-"arr len: %i\n" arr.length;
+"arr.len: %i\n" arr.length;
 
 // and works within functions
-"arr len: %i\n" printArrayLength(arr);
+"len(arr): %i\n" printArrayLength(arr);
 
 // * note: array length is only compile-time value,
 //         it is not stored anywhere in memory and 
@@ -30,15 +32,16 @@ ptr = arr + 1;
 
 // also can be initialized with values
 int[] arr2 = [3, 4];
+"arr2: [%i, %i]\n" arr2[0], arr2[1];
 
 // one can reassign array variable
 // each element is copied
 arr = arr2;
-"arr: [%i, %i]\n" arr[0], arr[1];
+"arr = arr2: [%i, %i]\n" arr[0], arr[1];
 
 // or using pointer
 arr = ptr;
-"arr: [%i, %i]\n" arr[0], arr[1];
+"arr = ptr: [%i, %i]\n" arr[0], arr[1];
 
 // every assignment to array-like variable is viewed as
 // assigning each element with expression on the left side
@@ -46,24 +49,25 @@ arr = ptr;
 // are treated as elements on corresponding indexes
 // so following will copy arr2 to arr and add 1 to each element
 arr = arr2 + 1;
-"arr: [%i, %i]\n" arr[0], arr[1];
+"arr = arr + 1: [%i, %i]\n" arr[0], arr[1];
 
 // because of that, pointers cannot be offsetted directly in assignment
 // following will copy ptr + 1 to arr[0] and ptr + 2 to arr[1]
 // and add 1 to each element of arr
 arr = ptr + 1;
-"arr: [%i, %i]\n" arr[0], arr[1];
+"arr = ptr + 1: [%i, %i]\n" arr[0], arr[1];
 
 // size of right side have to be at least as big as left side
 int[4] arr3;
 arr3[0] = 5;
 arr3[1] = 6;
+"arr3: [%i, %i, undefined, undefined]\n" arr3[0], arr3[1];
 
 arr = arr3;
-"arr: [%i, %i]\n" arr[0], arr[1];
+"arr = arr3: [%i, %i]\n" arr[0], arr[1];
 
 // length of array always remain the same
-"arr len: %i\n" printArrayLength(arr);
+"len(arr): %i\n" printArrayLength(arr);
 
 // qualifiers also can be used with arrays
 // they also are related to each element, not the array itself
@@ -82,10 +86,11 @@ darr[0] = 1;
 darr[1] = 2;
 
 "darr: [%i, %i]\n" darr[0], darr[1];
-"darr len: %i\n" printArrayLength(darr);
+"len(darr): %i\n" printArrayLength(darr);
 
 // it can be then deallocated
 free(darr);
+"free darr";
 "darr: [%i, %i]\n" darr[0], darr[1];
 
 
@@ -95,12 +100,12 @@ arrList[0] = 1;
 arrList[1] = 2;
 
 "array list: [%i, %i]\n" arrList[0], arrList[1];
-"arrList len: %i\n" printArrayLength(arrList);
+"len(arrList): %i\n" printArrayLength(arrList);
 
 arrList[5] = 6;
 
-"arrList[5]: %i\n" arrList[5];
-"arrList len: %i\n" printArrayLength(arrList);
+"arrList[5] = 6: %i\n" arrList[5];
+"len(arrList): %i\n" printArrayLength(arrList);
 
 // in case of array list it can be useful to also obtain allocated size
 "arrList size: %i\n" arrList.size;

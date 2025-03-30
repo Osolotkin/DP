@@ -7,9 +7,15 @@
 
 #include <ctype.h>
 #include <filesystem>
+#include <cstring>
 
-#define _AMD64_
-#include <libloaderapi.h>
+#ifdef _WIN32
+    #define _AMD64_
+    #include <libloaderapi.h>
+#else
+    #include <limits.h>
+    #include <unistd.h>
+#endif
 
 namespace Utils {
 

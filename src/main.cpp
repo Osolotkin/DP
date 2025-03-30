@@ -1,6 +1,4 @@
 // #pragma once
-
-#include <crtdbg.h>
 #include <stdio.h>
 #include <string.h>
 #include <chrono>
@@ -10,6 +8,8 @@
 #include "logger.h"
 
 #define OPTION_SYMBOL '-'
+
+int calledFromBat = 0;
 
 int run ();
 
@@ -106,6 +106,10 @@ int parseArgs(char* argv[], int argc) {
 
 			return -1;
 
+		} else if (!strcmp(option, "b")) {
+
+			calledFromBat = 1;
+
 		} else {
 
 			Logger::log(Logger::ERROR, "Unknown option!\n");
@@ -151,8 +155,8 @@ int main(int argc, char* argv[]) {
 	if (!Compiler::outFile) {
 
 		int i = 0;
-		int lastDotIdx = 0;
-		int lastSlashIdx = 0;
+		int lastDotIdx = -1;
+		int lastSlashIdx = -1;
 		while (1) {
 			const char ch = Compiler::mainFile[i];
 			if (ch == '\0') break;
@@ -161,11 +165,11 @@ int main(int argc, char* argv[]) {
 			i++;
 		}
 
-		const int tmp = lastDotIdx - lastSlashIdx;
-		const int len = (tmp > 0) ? tmp - 1 : 0;
+		const int idx = lastSlashIdx < 0 ? 0 : lastSlashIdx + 1;
+		const int len = lastDotIdx <= lastSlashIdx ? i - idx : lastDotIdx - idx;
 
 		Compiler::outFile = (char*) malloc(len + 1 + 4);
-		memcpy(Compiler::outFile, Compiler::mainFile + lastSlashIdx + 1, len);
+		memcpy(Compiler::outFile, Compiler::mainFile + idx, len);
 		Compiler::outFile[len] = '.';
 		Compiler::outFile[len + 1] = 'e';
 		Compiler::outFile[len + 2] = 'x';
@@ -193,10 +197,18 @@ int main(int argc, char* argv[]) {
 	printf("\nCompilation time was: %.2f ms.\n", cmpElapsedTime.count());
 
 	if (Compiler::command == Compiler::RUN) {
+		
 		Logger::log(Logger::INFO, "Running the executable...\n");
-		if(run() < 0) {
-			Logger::log(Logger::ERROR, "Creation of new process failed!\n");	
+		
+		if (calledFromBat) {
+			return 14;			
 		}
+
+		if(run() < 0) {
+			Logger::log(Logger::ERROR, "Creation of new process failed!\n");
+			return -1;	
+		}
+		
 	}
 
 	return 0;
@@ -206,6 +218,7 @@ int main(int argc, char* argv[]) {
 
 
 #ifdef _WIN32
+	#include <iostream>		
 	#include <windows.h>
 #else
 	#include <unistd.h>
@@ -213,25 +226,41 @@ int main(int argc, char* argv[]) {
 	
 int run () {
 	#ifdef _WIN32
-		STARTUPINFOA si = { sizeof(si) };
+
+		STARTUPINFOA si;
 		PROCESS_INFORMATION pi;
 
+		ZeroMemory(&si, sizeof(si));
+    	ZeroMemory(&pi, sizeof(pi));
+
+		//HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    	//DWORD mode;
+    	//GetConsoleMode(hConsole, &mode);
+    	//SetConsoleMode(hConsole, mode & ~ENABLE_PROCESSED_OUTPUT);
+
 		if (CreateProcessA(
-			Compiler::outFile, // Program to execute
-			NULL,              // Command-line arguments
+			NULL,//Compiler::outFile, // Program to execute
+			(LPSTR)(std::string("cmd.exe /k ") + Compiler::outFile).c_str(),              // Command-line arguments
 			NULL,              // Process security attributes
 			NULL,              // Thread security attributes
 			FALSE,             // Inherit handles
-			FALSE,			   //CREATE_NEW_CONSOLE, // Create a new console window
+			CREATE_NEW_PROCESS_GROUP | CREATE_NEW_CONSOLE,			   //CREATE_NEW_CONSOLE, // Create a new console window
 			NULL,              // Environment variables
 			NULL,              // Working directory
 			&si,               // STARTUPINFO
 			&pi                // PROCESS_INFORMATION
 		)) {
+			
+			//AttachConsole(pi.dwProcessId);
+			
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
-			return 0;
+
+			ExitProcess(0);
+		
 		} else {
+
+			std::cout << "CreateProcess failed. Error: " << GetLastError() << std::endl;
 			return -1;
 		}
 	#else
@@ -261,3 +290,6 @@ int run () {
 //
 // 	-h (help):
 //	 prints help
+//
+//  -b (bat)
+//	 indicates that program is called run from the bat file 

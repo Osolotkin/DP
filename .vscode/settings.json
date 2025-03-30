@@ -1,6 +1,7 @@
 {
     "C_Cpp.default.cppStandard": "c++20",
     "files.associations": {
+        "*.vi": "vi",
         "vector": "cpp",
         "atomic": "cpp",
         "bit": "cpp",
@@ -64,7 +65,12 @@
         "xutility": "cpp",
         "functions.h": "c",
         "algorithm": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "unordered_set": "cpp",
+        "array": "cpp",
+        "list": "cpp",
+        "unordered_map": "cpp",
+        "xhash": "cpp"
     },
     "latex-workshop.latex.tools": [
 

@@ -11,14 +11,10 @@ namespace FileDriver {
     #define MAX_FILE_NAME_LENGTH 256
 
     //#define POSIX 0
-    #define WINDOWS 1
+    //#define WINDOWS 1
 
     // 0 on success
-    #ifdef POSIX
-        int newdir(char* const path) {
-            mkdir(path, 0777);
-        }
-    #elif WINDOWS
+    #ifdef _WIN32
         #include <direct.h>
         #include <errno.h>
         int newDir(char* const path) {
@@ -26,6 +22,11 @@ namespace FileDriver {
                 return (errno != EEXIST);
             }
             return 0;
+        }
+    #else
+        #include <sys/stat.h> 
+        int newDir(char* const path) {
+            return mkdir(path, 0777);
         }
     #endif
 
