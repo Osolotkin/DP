@@ -104,7 +104,12 @@ int build() {
     std::filesystem::path exePath = Utils::getExePath();
     
     std::string libPath = (exePath / "../tcc/lib").string();
-    std::string tccIncPath = (exePath / "../tcc/inc").string();
+    std::string tccIncPath = 
+    #ifdef _WIN32
+        (exePath / "../tcc/inc").string();
+    #else
+        "/usr/include";
+    #endif
     std::string resIncPath = (exePath / "../resources").string();
 
     TCCState *state = tcc_new();
@@ -112,6 +117,10 @@ int build() {
         Logger::log(Logger::ERROR, "TCC: Failed to create TCC state.\n");
         return Err::TCC_ERROR;
     }
+
+    #ifdef __unix__
+        // tcc_set_options(state, "-nostdinc");
+    #endif
 
     if (Compiler::debugInfo) {
         tcc_set_options(state, "-ggdb");
@@ -139,6 +148,7 @@ int build() {
         return Err::TCC_ERROR;
     }
 
+    #ifdef _WIN32
     if (
         tcc_add_library(state, "gdi32") < 0 ||
         tcc_add_library(state, "kernel32") < 0 ||
@@ -150,6 +160,32 @@ int build() {
         tcc_delete(state);
         return Err::TCC_ERROR;
     }
+    #else
+    
+    if (tcc_add_include_path(state, "/usr/lib/gcc/x86_64-linux-gnu/11/include") < 0) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add library path.\n");
+        tcc_delete(state);
+        return Err::TCC_ERROR;
+    }
+
+    if (tcc_add_library_path(state, "/usr/lib") < 0) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add library path.\n");
+        tcc_delete(state);
+        return Err::TCC_ERROR;
+    }
+
+    if (
+        tcc_add_library(state, "m") < 0 ||        // Math library
+        tcc_add_library(state, "c") < 0 ||        // Standard C library
+        tcc_add_library(state, "dl") < 0 ||       // Dynamic linking library
+        tcc_add_library(state, "pthread") < 0 || // POSIX threads library
+        tcc_add_library(state, "tcc1-64") < 0
+    ) {
+        Logger::log(Logger::ERROR, "TCC: Failed to add required libraries.\n");
+        tcc_delete(state);
+        return Err::TCC_ERROR;
+    }
+    #endif
 
     if (
         tcc_add_file(state, "main.c") < 0

@@ -9,6 +9,7 @@ tmp/*
 !doc/doc.html
 !doc/doc_tmp.html
 !doc/build.js
+!doc/grammar.ebnf
 
 !test/Arrays
 !test/Comments
@@ -21,5 +22,7 @@ tmp/*
 !test/Strings
 !test/Structs
 !test/Functions
+!test/Loops
+!test/Namespaces
 
 !thesis/main.pdf

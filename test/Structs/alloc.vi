@@ -4,13 +4,37 @@ def Point {
     i32 y;
 }
 
-Point^ pxA = alloc Point : { 1, 2 };
-Point^^ ppxA = alloc Point^ : null;
-Point^^ ppxA2 = alloc Point^ : pxA;
+// alloc sizeof(Pointer)
+Point^ pptA = alloc Point;
+print(pptA);
 
-// malloc(sizeof(Point) * 9);
-Point^ pxB = alloc Point [9];
-Point^ pxB2 = alloc [9];
+// alloc and init
+Point^ pptB = alloc Point : { 1, 2 };
+print(pptB);
 
-Point^^ ppxB = alloc ^ : null;
-Point^^ ppxB2 = alloc ^[9] : null;
+// dtype can be omitted if present on the left side
+Point^ pptC = alloc;
+Point^ pptD = alloc : { 1, 2 };
+print(pptC);
+print(pptD);
+
+// also
+Point^^ ppptA = alloc Point^ : null;
+"%u\n" ^ppptA;
+
+Point^^ ppptB = alloc Point^ : pptA;
+print(^ppptB);
+
+// same as malloc(sizeof(Point) * 9);
+Point^ ptB = alloc Point [9];
+
+^ptB = { 3, 4 };
+print(ptB);
+
+^(ptB + 1) = { 5, 4 };
+print(ptB + 1);
+
+
+fcn print(Point^ ppt) {
+    "[%i, %i]\n" ppt.x, ppt.y;
+}

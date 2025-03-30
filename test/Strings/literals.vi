@@ -3,6 +3,8 @@ u8[] str = "AAAABBBB";
 u16[] wstr16 = "ěščřžýáíé";
 u32[] wstr32 = "こんにちは";
 
+"str = %.*s\n" str.length, str;
+
 "wstr16[0] = %.*s\n" 2, wstr16;
 "wstr16[2] = %.*s\n" 2, wstr16 + 2;
 "wstr16[4] = %.*s\n" 2, wstr16 + 4;
@@ -17,5 +19,5 @@ u16 ch16 = 'AB';
 u32 ch32 = 'ABCD';
 u64 ch64 = 'ABCDEFGH';
 
-u16 ch8 = 'ě';
+u16 ch = 'ě';
 "ch16 = %.*s\n" 2, &ch;

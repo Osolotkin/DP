@@ -64,6 +64,7 @@ namespace Err {
         GLOBAL_SCOPE_REQUIRED           = -52,
         INVALID_DECLARATION_ORDER       = -53,
         CIRCULAR_IMPORT                 = -54,
+        FILE_DOES_NOT_EXISTS            = -55,
     };
 
     const char* const str[] = {
@@ -123,6 +124,7 @@ namespace Err {
         "Declaration requires global scope!",
         "Type definition '%.*s' includes type that is defined later! Move its definition before this one! Or may be you meant to use pointer?",
         "Circular import detected!",
+        "File '%s' does not exists!",
     };
 
 }

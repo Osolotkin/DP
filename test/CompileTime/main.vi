@@ -1,3 +1,8 @@
+// For now only as proof of concept as its
+// just a waste of time to implement it and 
+// keep up to date.
+// First the design itself have to stale
+
 embed int x1 = multiply(4, 3);
 embed int x2 = multiply(14, 23);
 embed int x3 = fact(10);

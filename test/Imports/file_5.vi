@@ -1,3 +1,0 @@
-fcn foo() -> int {
-    return 2;
-}

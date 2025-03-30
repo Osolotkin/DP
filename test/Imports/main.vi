@@ -1,6 +1,0 @@
-#import file_1.vi;
-#import file_2.vi;
-#import file_3.vi as namespace Foo;
-
-int x = y + z + Foo::foo();
-"%i\n" x;

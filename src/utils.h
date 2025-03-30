@@ -46,7 +46,7 @@ namespace Utils {
     char* encodeUtf8(const char* const str, const int strLen, int* lenOut, int* maxCharSizeOut, int copyWhenAscii = 0);
 
     template<typename T>
-    void pushFornt(std::vector<T> vec, T obj) {
+    void pushFornt(std::vector<T> &vec, T obj) {
         vec.insert(vec.begin(), obj);
     }
 

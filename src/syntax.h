@@ -9,6 +9,7 @@
 #include <string>
 #include <cstdint>
 #include <array>
+#include <unordered_map>
 
 // as used once lets cook this way
 typedef float float_t;
@@ -17,6 +18,7 @@ typedef double double_t;
 
 #include "globals.h"
 
+#define IS_MEMBER_SELECTION(x) ((x) == OP_MEMBER_SELECTION || ((x) == OP_DEREFERENCE_MEMBER_SELECTION))
 
 struct Translator;
 
@@ -69,6 +71,7 @@ struct Union;
 struct GetLength;
 struct GetSize;
 struct Catch;
+struct Using;
 
 struct ScopeName;
 enum ScopeType : int;
@@ -214,6 +217,12 @@ struct KeyWord {
     const char* str;
 };
 
+enum InternalVariablesEnum : int {
+    IV_NULL,
+    IV_TRUE,
+    IV_FALSE
+};
+
 // internal Variables such as null, true, false etc...
 extern Variable* internalVariables[];
 extern const int internalVariablesCount;
@@ -316,6 +325,9 @@ struct Operator {
 };
 
 // indexed by OperatorEnum
+// !!! CAUTION : on change some update :
+//               operatorFunctions in interpreter.cpp
+//               ... maybe some other stuff ...
 constexpr auto operators = std::to_array<Operator>({
     
     // OP_UNARY_PLUS
@@ -423,6 +435,20 @@ constexpr auto operators = std::to_array<Operator>({
         IS_BINARY | IS_TWO_CHAR
     },
 
+    // OP_EQUAL
+    {
+        toDoubleChar('=', '='),
+        5,
+        IS_BINARY | IS_ONE_CHAR
+    },
+
+    // OP_NOT_EQUAL
+    {
+        toDoubleChar('!', '='),
+        5,
+        IS_BINARY | IS_TWO_CHAR
+    },
+
     // OP_LESS_THAN
     {
         '<',
@@ -447,20 +473,6 @@ constexpr auto operators = std::to_array<Operator>({
     // OP_GREATER_THAN_OR_EQUAL
     {
         toDoubleChar('>', '='),
-        5,
-        IS_BINARY | IS_TWO_CHAR
-    },
-
-    // OP_EQUAL
-    {
-        '=',
-        5,
-        IS_BINARY | IS_ONE_CHAR
-    },
-
-    // OP_NOT_EQUAL
-    {
-        toDoubleChar('!', '='),
         5,
         IS_BINARY | IS_TWO_CHAR
     },
@@ -530,7 +542,6 @@ constexpr auto operators = std::to_array<Operator>({
 
 });
 
-// beloved c++
 const std::size_t OPERATORS_COUNT = operators.size();
 
 
@@ -579,6 +590,10 @@ struct SyntaxNode {
 
     static std::vector<GotoStatement*> gotos;
 
+    // as files are parsed only once and linked via pointers
+    // need option to get access to the original node
+    SyntaxNode* ogNode = NULL;
+    
     NodeType type;
     Scope* scope;
     Location* loc;
@@ -599,7 +614,7 @@ struct Scope : SyntaxNode {
 
     // the function this scope is in
     // NULL if main
-    Function* fcn;
+    Function* fcn; // TODO : remove
 
     std::vector<SyntaxNode*> children;
 
@@ -611,8 +626,9 @@ struct Scope : SyntaxNode {
     // helps to link variables with definitions.
     // nodes such as Enumerator, Scope, VariableDefinition...
     // so we can track their order and dont have to go through all childrens.
-    std::vector<SyntaxNode*> defSearch;
-    
+    // std::vector<SyntaxNode*> defSearch;
+    std::unordered_map<std::string_view, SyntaxNode*> defSearch;
+
     std::vector<Variable*> defs; // as vars, so can be searched by name
     std::vector<Function*> fcns;
     std::vector<Union*> unions;
@@ -622,6 +638,7 @@ struct Scope : SyntaxNode {
     std::vector<Enumerator*> enums; // LOOK AT : maybe unite enum under Variable interface or something
     std::vector<Namespace*> namespaces;
     std::vector<GotoStatement*> gotos;
+    std::vector<Using*> usings;
 
     Scope() : SyntaxNode(NT_SCOPE) {};
 
@@ -1282,7 +1299,7 @@ struct ImportStatement : SyntaxNode {
     String param;
 
     // root scope of the imports file
-    Scope* root;
+    // Scope* root;
 
     ImportStatement() : SyntaxNode(NT_IMPORT) {};
 

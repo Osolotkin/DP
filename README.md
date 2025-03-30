@@ -9,6 +9,11 @@ using `g++`
     run either `build_gcc.bat` or `build_gcc_debug.bat`
     note, not that much tested
 
+linux `g++` (for now experimental)
+    run `build_gcc_linux.sh`, but note, may be some tweaks 
+    will be needed to make tcc run-time work... maybe even
+    changes in code (main.cpp)
+    
 builded file should be located in `./build`
 
 ## Usage

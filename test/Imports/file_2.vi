@@ -1,3 +1,0 @@
-#import file_4.vi as namespace Boo;
-
-int z = Boo::x + Boo::y;

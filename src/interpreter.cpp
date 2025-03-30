@@ -504,6 +504,11 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
 
         // INT
         { .unary = &applyUnaryOperatorPlusI32 },
@@ -513,19 +518,31 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorMultiplicationI32,
         &applyBinaryOperatorDivisionI32,
         &applyBinaryOperatorModuloI32,
+        
         { .unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorEqual,
         &applyBinaryOperatorNotEqual,
         &applyBinaryOperatorLessThan,
         &applyBinaryOperatorGreaterThan,
         &applyBinaryOperatorLessThanOrEqual,
         &applyBinaryOperatorGreaterThanOrEqual,
+        
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -540,9 +557,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         & applyBinaryOperatorMultiplicationI32,
         & applyBinaryOperatorDivisionI32,
         & applyBinaryOperatorModuloI32,
+        
         {.unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
         & applyBinaryOperatorEqual,
         & applyBinaryOperatorNotEqual,
         & applyBinaryOperatorLessThan,
@@ -551,8 +577,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         & applyBinaryOperatorGreaterThanOrEqual,
         & applyBinaryOperatorBoolAnd,
         & applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -567,9 +595,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         & applyBinaryOperatorMultiplicationI32,
         & applyBinaryOperatorDivisionI32,
         & applyBinaryOperatorModuloI32,
+        
         {.unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         & applyBinaryOperatorEqual,
         & applyBinaryOperatorNotEqual,
         & applyBinaryOperatorLessThan,
@@ -578,8 +615,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         & applyBinaryOperatorGreaterThanOrEqual,
         & applyBinaryOperatorBoolAnd,
         & applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -594,9 +633,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorMultiplicationI32,
         &applyBinaryOperatorDivisionI32,
         &applyBinaryOperatorModuloI32,
+        
         { .unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorEqual,
         &applyBinaryOperatorNotEqual,
         &applyBinaryOperatorLessThan,
@@ -605,8 +653,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorGreaterThanOrEqual,
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -621,9 +671,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorMultiplicationI64,
         &applyBinaryOperatorDivisionI64,
         &applyBinaryOperatorModuloI64,
+        
         { .unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorEqual,
         &applyBinaryOperatorNotEqual,
         &applyBinaryOperatorLessThan,
@@ -632,8 +691,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorGreaterThanOrEqual,
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -648,9 +709,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorMultiplicationF32,
         &applyBinaryOperatorDivisionF32,
         NULL,
+        
         { .unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorEqual,
         &applyBinaryOperatorNotEqual,
         &applyBinaryOperatorLessThan,
@@ -659,8 +729,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorGreaterThanOrEqual,
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -675,9 +747,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorMultiplicationF64,
         &applyBinaryOperatorDivisionF64,
         NULL,
+        
         { .unary = &applyUnaryOperatorAddress },
         NULL,
+        
         NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorEqual,
         &applyBinaryOperatorNotEqual,
         &applyBinaryOperatorLessThan,
@@ -686,8 +767,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         &applyBinaryOperatorGreaterThanOrEqual,
         &applyBinaryOperatorBoolAnd,
         &applyBinaryOperatorBoolOr,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -702,8 +785,18 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        
         { .unary = &applyUnaryOperatorAddress },
-        NULL, 
+        NULL,
+        
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
         NULL,
         NULL,
         NULL,
@@ -713,8 +806,10 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        
         NULL,
         NULL,
+        
         NULL,
         NULL,
         NULL,
@@ -729,22 +824,35 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
-        { .unary = &applyUnaryOperatorAddress },
+        
+        { .unary = &applyUnaryOperatorAddress },        
+        NULL,
+        
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorSubscript,
         &applyBinaryOperatorMemberSelectionPointer,
         NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
+        
         NULL,
         NULL,
         
@@ -757,21 +865,33 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         { .unary = &applyUnaryOperatorAddress },
+        NULL,
+        
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+        
         &applyBinaryOperatorSubscript,
+        &applyBinaryOperatorMemberSelectionPointer,
         NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
+        
         NULL,
         NULL,
         
@@ -785,6 +905,15 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         { .unary = &applyUnaryOperatorAddress },
         NULL,
+        
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
         NULL,
         NULL,
         NULL,
@@ -812,7 +941,15 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         { .unary = &applyUnaryOperatorAddress },
         NULL,
-        &applyBinaryOperatorMemberSelection,
+        
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+
+        NULL,
+        NULL,
+
         NULL,
         NULL,
         NULL,
@@ -822,14 +959,23 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
+
         NULL,
         NULL,
         
+        NULL,
+        &applyBinaryOperatorMemberSelection,
+        NULL,
+        
+        NULL,
+        NULL,
+
         // MEMBER
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
         NULL,
         NULL,
         NULL,
@@ -866,19 +1012,24 @@ int applyUnaryOperatorMinusCustom(Operand* operand) {
         NULL,
         NULL,
         NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
         &applyBinaryOperatorMemberSelectionEnum,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
         NULL,
         NULL,
         NULL,

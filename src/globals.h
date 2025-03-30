@@ -32,6 +32,7 @@ const char STRING_BEGIN     = '"';
 const char STRING_END       = '"';
 const char CHAR_BEGIN       = '\'';
 const char CHAR_END         = '\'';
+const char EQUAL_SYMBOL     = '=';
 
 const char ESCAPE_CHAR = '\\';
 

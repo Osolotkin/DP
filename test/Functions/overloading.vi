@@ -1,7 +1,15 @@
 
+"foo(2): ";
 foo(2);
+
+"foo(2f): ";
 foo(2f);
+
+"foo(2f, 2f): ";
 foo(2f, 2f);
+
+"foo(2, 2): ";
+foo(2, 2);
 
 fcn foo(i32 x, f32 y) {
     "i32, f32\n";
