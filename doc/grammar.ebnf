@@ -1,72 +1,127 @@
-Grammar = { Statement | Definition | Scope | Namespace } ;
+/* https://bnfplayground.pauliankline.com/ */
 
-Statement = [ StatementAssignment | VariableDefinition ], ";" ;
-
-Definition = UnionDefinition | StructDefinition | FunctionDefinition | ErrorDefinition ;
-
-StatementAssignment = Expression, "=", RValue ;
-
-RValue = Allocation | Expression ;
-    
-Allocation = "alloc", AllocationDefinition ;
-
-AllocationDefinition = VariableDefinitionLValue, [ ":", Expression ] ;
-
-BuiltinDatatype = "int" | "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64" | "error" ;
-
-Datatype = Identifier | BuiltinDatatype ;
-
-VariableDefinition = VariableDefinitionLValue, [ "=", RValue ] ;
-
-VariableDefinitionLValue = Datatype, [ Decorator ], Identifier ;
-
-Decorator = { "[", (Expression | Qualifier), "]" }, { "^" } ;
-
-Qualifier = "const" | "embed" ;
-
-Identifier = Letter, { Letter | Digit | "_" } ;
-
-UnionDefinition = "def", "union", StructUnionBody ;
-
-StructDefinition = "def", [ "struct" ], StructUnionBody ;
-
-StructUnionBody = "{", { VariableDefinition, ";" }, "}" ;
-
-ErrorDefinition = "error", "{", { Identifier, ";" }, "}" ;
-
-FunctionDefinition = "fcn", "(", { VariableDefinitionLValue }, ")", [ "->", Datatype ], Scope ;
-
-Namespace = "namespace", Identifier, Scope ;
-
-Scope = "{", { Statement }, "}" ;
+<Grammar> ::= ( <Statement> | <Definition> | <Scope> | <Namespace> )*
 
 
 
-Expression = Term, { ( "+" | "-" ), Term } ;
+<Statement> ::= ( <StatementAssignment> | <VariableDefinition> )? ";"
 
-Term = Factor, { ( "*" | "/" | "%" ), Factor } ;
+<StatementAssignment> ::= <Expression> "=" <RValue>
 
-Factor = ( UnaryOperator | Literal | Identifier | FunctionCall | "(", Expression, ")" ) ;
+<RValue> ::= <Allocation> | <Expression>
 
-UnaryOperator = "+" | "-" | "!" | "~" ;
+<Allocation> ::= "alloc" <AllocationDefinition>
 
-Literal = IntegerLiteral | FloatingPointLiteral | StringLiteral | InternalConstant ;
+<AllocationDefinition> ::= <Datatype>? <Decorator>? ( ":" <Expression> )?
 
-IntegerLiteral = Digit, { Digit } ;
+<BuiltinDatatype> ::= "int" | "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64" | "error"
 
-FloatingPointLiteral = IntegerLiteral, ".", { Digit } ;
+<Datatype> ::= <Identifier> | <BuiltinDatatype>
 
-StringLiteral = '"', { Letter | Digit | " " | "\n" | "\t" }, '"' ;
+<VariableDefinition> ::= <VariableDefinitionLValue> ( "=" <RValue> )?
 
-InternalConstant = "true" | "false" | "null" ;
+<VariableDefinitionLValue> ::= <FullDatatype> <Decorator>* <Identifier>
 
-FunctionCall = Identifier, "(", { Expression, { [ ",", Expression ] } }, ")" ;
+<FullDatatype> ::= <Datatype> <Decorator>*
+
+<Decorator> ::= ( "[" ( E | <Number> | <Qualifier> ) "]" ) | ( "^" )
+
+<Namespace> ::= "namespace" <Identifier> <Scope>
+
+<Scope> ::= "{" <Statement>* "}"
+
+
+<Qualifier> ::= "const" | "embed"
 
 
 
-Letter = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" |
-         "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" | "a" | "b" | "c" |
-         "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" |
-         "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+/* ========== DEFINITIONS BEGIN ========== */
 
-Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+<Definition> ::= <UnionDefinition> | <StructDefinition> | <FunctionDefinition> | <ErrorDefinition>
+
+<UnionDefinition> ::= "def" "union" <StructUnionBody>
+
+<StructDefinition> ::= "def" "struct"? <StructUnionBody>
+
+<StructUnionBody> ::= "{" ( <VariableDefinition> ";" )* "}"
+
+<ErrorDefinition> ::= "error" "{" ( <Identifier> ";" )* "}"
+
+<FunctionDefinition> ::= "fcn" "(" ( <VariableDefinitionLValue> ( "," <VariableDefinitionLValue> )* )? ")" ( "->" <Datatype> )? <Scope>
+
+/* ========== DEFINITIONS END ========== */
+
+
+
+/* ========== EXPRESSION BEGIN ========== */
+
+<Expression> ::= <LogicalOrExpression>
+
+<LogicalOrExpression> ::= <LogicalAndExpression> ( "||" <LogicalAndExpression> )*
+
+<LogicalAndExpression> ::= <BitwiseOrExpression> ( "&&" <BitwiseOrExpression> )*
+
+<BitwiseOrExpression> ::= <BitwiseXorExpression> ( "|" <BitwiseXorExpression> )*
+
+<BitwiseXorExpression> ::= <BitwiseAndExpression> ( "^" <BitwiseAndExpression> )*
+
+<BitwiseAndExpression> ::= <EqualityExpression> ( "&" <EqualityExpression> )*
+
+<EqualityExpression> ::= <RelationalExpression> ( ( "==" | "!=" ) <RelationalExpression> )*
+
+<RelationalExpression> ::= <ShiftExpression> ( ( "<" | ">" | "<=" | ">=" ) <ShiftExpression> )*
+
+<ShiftExpression> ::= <AdditiveExpression> ( ( "<<" | ">>" ) <AdditiveExpression> )*
+
+<AdditiveExpression> ::= <MultiplicativeExpression> ( ( "+" | "-" ) <MultiplicativeExpression> )*
+
+<MultiplicativeExpression> ::= <UnaryExpression> ( ( "*" | "/" | "%" ) <UnaryExpression> )*
+
+<UnaryExpression> ::= <UnaryOperator> <UnaryExpression> | <PostfixExpression>
+
+<UnaryOperator> ::=  "+" | "-" | "!" | "~" | "&" | "*"
+
+<PostfixExpression> ::= <PrimaryExpression> ( <PostfixOp> )*
+
+<PostfixOp> ::= "[" <Expression> "]"
+              | "." <Identifier>
+              
+<FunctionCall> ::= <Identifier> "(" ( <Expression> ("," <Expression>)* )? ")"
+
+<ArrayInitialization> ::= "[" <Expression> ( "," <Expression> )* "]"
+
+<TypeInitialization> ::= "{" ( (<Expression> ("," <Expression>)*) | (<Identifier> ":" <Expression> ("," <Identifier> ":" <Expression>)*)) "}"
+
+<PrimaryExpression> ::= <Identifier>
+                      | <Literal>
+                      | <ArrayInitialization>
+                      | <TypeInitialization>
+                      | "(" <Expression> ")"
+                      | <FunctionCall>
+
+/* ========== EXPRESSION END ========== */
+
+
+
+/* ========== LITERALS BEGIN ========== */
+
+<Literal> ::= <IntegerLiteral> | <FloatingPointLiteral> | <StringLiteral> | <InternalConstant>
+
+<IntegerLiteral> ::= <Digit>+
+
+<FloatingPointLiteral> ::= <IntegerLiteral> "." <Digit>*
+
+<StringLiteral> ::= "\"" ( <Letter> | <Digit> | " " | "\n" | "\t" )* "\""
+
+<InternalConstant> ::= "true" | "false" | "null"
+
+/* ========== LITERALS END ========== */
+
+
+<Identifier> ::= <Letter> ([a-z] | [A-Z] | [0-9] | "_")*
+
+<Number> ::= <Digit>+
+
+<Letter> ::= ([a-z] | [A-Z])
+
+<Digit> ::= [0-9]

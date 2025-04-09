@@ -376,7 +376,6 @@ namespace Parser {
     }
 
     // meh
-    // not sure about copying path, but its simpler that way for now
     FileId* genFileId(std::filesystem::path* const path) {
         
         if (!std::filesystem::exists(*path)) return NULL;
@@ -664,6 +663,10 @@ namespace Parser {
         while (1) {
 
             const int oldIdx = loc->idx - 1;
+            
+            if ((endAsStatement && str[oldIdx] == STATEMENT_END)) {
+                return Err::OK;
+            }
 
             const int err = Utils::skipWhiteSpacesAndComments(str, loc);
             if (err < 0) {
@@ -678,11 +681,7 @@ namespace Parser {
 
             const char ch = str[loc->idx];
 
-            if ((endAsStatement && str[oldIdx] == STATEMENT_END)) {
-
-                return Err::OK;
-                
-            } else if (ch == STATEMENT_END) {
+            if (ch == STATEMENT_END) {
 
                 loc->idx++;
             
@@ -1637,7 +1636,7 @@ namespace Parser {
 
             while (1) {
 
-                Variable* var = new Variable();
+                Variable* var = new Variable(scope);
                 var->name = str + loc->idx;
                 var->nameLen = Utils::findVarEnd(var->name);
                 var->loc = getLocationStamp(loc);
@@ -2677,6 +2676,7 @@ namespace Parser {
                 SwitchCase* switchCase = new SwitchCase;
                 switchCase->loc = getLocationStamp(loc);
                 switchCase->scope = scope;
+                switchCase->elseCase = NULL;
 
                 Variable* var = new Variable;
                 var->loc = getLocationStamp(loc);
@@ -2698,31 +2698,45 @@ namespace Parser {
 
                 loc->idx++;
 
+                int atLeastOneCase = 0;
                 while (1) {
 
-                    if (Utils::skipWhiteSpacesAndComments(str, loc)) return Err::UNEXPECTED_END_OF_FILE;
+                    if (Utils::skipWhiteSpacesAndComments(str, loc)) {
+                        if (atLeastOneCase) return Err::OK;
+                        return Err::UNEXPECTED_END_OF_FILE;
+                    }
 
                     char* const word = str + loc->idx;
                     const int wordLen = Utils::findVarEnd(word);
                     const KeyWord* const keyWord = findKeyWord(keyWords, KEY_WORDS_COUNT, word, wordLen);
 
-                    if (keyWord->type != KW_SWITCH_CASE_CASE && keyWord->type != KW_ELSE) {
-                        Logger::log(Logger::ERROR, "TODO");
-                        return Err::UNEXPECTED_SYMBOL;
+                    if (!keyWord || (keyWord->type != KW_SWITCH_CASE_CASE && keyWord->type != KW_ELSE)) {
+                        break;
+                        //Logger::log(Logger::ERROR, "Keyword 'case' or 'else' expected!", loc, 1);
+                        //return Err::UNEXPECTED_SYMBOL;
                     }
 
-                    loc->idx += wordLen + 1;
+                    loc->idx += wordLen;
 
-                    Variable* cmpExp = new Variable;
-                    cmpExp->scope = scope;
-                    err = parseExpression(cmpExp, str, loc, CHAR_CAT(STATEMENT_BEGIN, SCOPE_BEGIN));
-                    if (err < 0) return err;
+                    // whatever
+                    Variable* cmpExp;
+                    if (keyWord->type != KW_ELSE) {
+                        cmpExp = new Variable;
+                        cmpExp->scope = scope;
+                        err = parseExpression(cmpExp, str, loc, CHAR_CAT(STATEMENT_BEGIN, SCOPE_BEGIN));
+                        if (err < 0) return err;
+                    } else {
+                        if (Utils::skipWhiteSpacesAndComments(str, loc)) return Err::UNEXPECTED_END_OF_FILE;
+                        loc->idx++;
+                    }
 
                     ch = str[loc->idx - 1];
                     Scope* sc = new Scope;
                     sc->fcn = currentFunction;
                     sc->scope = scope;
                     setParentIdx(sc);
+
+                    atLeastOneCase = 1;
 
                     //pushDefLike(scope->defSearch, sc);
 
@@ -2770,12 +2784,7 @@ namespace Parser {
 
                 //pushDefLike(scope->defSearch, outerScope);
 
-                Scope* bodyScope = new Scope();
-                bodyScope->fcn = currentFunction;
-                bodyScope->scope = outerScope;
-                setParentIdx(bodyScope);
-
-                Variable *initEx = new Variable(outerScope);
+                Variable* initEx = new Variable(outerScope);
 
                 // can be either variable initialization or expression
                 err = selectDataTypeKeyWord(str, &(loc->idx));
@@ -2786,6 +2795,11 @@ namespace Parser {
                     err = parseKeyWord((KeyWordType)err, outerScope, str, loc);
                     if (err < 0) return err;
                 }
+
+                Scope* bodyScope = new Scope();
+                bodyScope->fcn = currentFunction;
+                bodyScope->scope = outerScope;
+                setParentIdx(bodyScope);
 
                 Variable* conditionEx = new Variable(outerScope);
                 conditionEx->loc = getLocationStamp(loc);
@@ -3030,6 +3044,7 @@ namespace Parser {
                     Variable* newVar = new Variable(scope, dtype, loc);
 
                     newVarDef->var = newVar;
+                    newVarDef->var->cvalue.hasValue = 1;
                     newVarDef->var->cvalue.dtypeEnum = dtype;
                     newVarDef->loc = getLocationStamp(loc);
                     newVarDef->flags = IS_CMP_TIME;

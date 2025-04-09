@@ -837,7 +837,7 @@ namespace Validator {
 
             Variable* op = SyntaxNode::branchExpressions[i];
             int dtype = evaluateDataTypes(op);
-            if (IS_INT(dtype)) continue;
+            if (IS_INT(dtype) || dtype == DT_POINTER) continue;
 
             Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_DATA_TYPE), op->loc, 1);
             return Err::INVALID_DATA_TYPE;
@@ -851,7 +851,13 @@ namespace Validator {
 
             for (int i = 0; i < sw->casesExp.size(); i++) {
                 
-                int dtype = evaluate(sw->casesExp[i]);
+                int dtype = evaluateDataTypes(sw->casesExp[i]);
+                if (dtype < 0) {
+                    Logger::log(Logger::ERROR, "", sw->loc, 1);
+                    return dtype;
+                }
+
+                dtype = evaluate(sw->casesExp[i]);
                 if (dtype < 0) return dtype;
 
             }
@@ -2096,6 +2102,20 @@ namespace Validator {
                             
                             return DT_UINT_64;
 
+                        }
+
+                        if (dtypeA == DT_ENUM) {
+
+                            Enumerator* en = (Enumerator*) customDtypeA;
+                            Variable* var = Utils::find(en->vars, bex->operandB->name, bex->operandB->nameLen);
+                            if (!var) {
+                                Logger::log(Logger::ERROR, "Unable to find member of enum!", bex->operandB->loc, 0);
+                                return Err::UNEXPECTED_SYMBOL;
+                            }
+                            op->expression = NULL; // need to be fixed other way, should happen with refactoring
+                            copy(op, var);
+                            return ((Enumerator*) customDtypeA)->dtype;
+                        
                         }
 
                         if (dtypeA == DT_POINTER) {

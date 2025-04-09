@@ -11,6 +11,7 @@ tmp/*
 !doc/build.js
 !doc/grammar.ebnf
 
+!test/Allocations
 !test/Arrays
 !test/Comments
 !test/Literals
