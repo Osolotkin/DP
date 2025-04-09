@@ -225,6 +225,7 @@ VariableAssignment::VariableAssignment(Location* loc) : VariableAssignment() {
 
 Variable::Variable() {
 
+    flags = 0;
     unrollExpression = 1;
     scope = root;
     name = NULL;

@@ -907,7 +907,7 @@ struct Variable : INamedVar, Operand {
 
     // std::vector<INamed*> scopeNames;
 
-    uint64_t flags; // TODO : get rid of, didn't helped to solve the problem
+    uint64_t flags = 0; // TODO : get rid of, didn't helped to solve the problem
 
     Variable();
     Variable(Location* loc);
