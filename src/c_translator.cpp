@@ -176,6 +176,7 @@ void c_init(char* const dirName) {
     // fprintf(fFile, "#include \"stdint.h\"\n");
     // fprintf(mFile, "#pragma once\n");
 
+    // translatorC.mainFile = stdout;
     if (internalFunctionUsed & (1 << (IF_PRINTF - 1))) {
         fprintf(mFile, "#include <stdio.h>\n");    
     }
@@ -920,17 +921,14 @@ int printForExpression(FILE* file, Variable* var, Variable* lvalue, int id) {
         return 0;
     }
 
-    printf("ex->type: %i\n", ex->type);
     switch (ex->type) {
 
         case EXT_UNARY : {
             
             UnaryExpression* uex = (UnaryExpression*) (var->expression);
-            printf(" uex->operType: %i\n", uex->operType);
 
             printOperator(file, uex->operType);
 
-            printf(" uex->flag: %i\n", uex->operand->flags);
             if (printForExpression(file, uex->operand, lvalue, id)) {
                 printVariable(file, 0, lvalue);
                 fprintf(file, "[off%i+i]", id);
@@ -943,13 +941,10 @@ int printForExpression(FILE* file, Variable* var, Variable* lvalue, int id) {
         case EXT_BINARY : {
 
             BinaryExpression* bex = (BinaryExpression*)(var->expression);
-            printf(" bex->operType: %i\n", bex->operType);
             if (bex->operType == OP_CONCATENATION) return 1;
 
 
-            printf(" bex->opA->flag: %i\n", bex->operandA->flags);
             if (printForExpression(file, bex->operandA, lvalue, id)) {
-                printf("  lavlue: %lu\n", lvalue);
                 printVariable(file, 0, lvalue);
                 fprintf(file, "[off%i+i]", id);
             }
@@ -1000,7 +995,6 @@ int printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arr
 
     Expression* ex = var->expression;
     if (!ex) {
-        printf("var: %*.s\n", var->nameLen, var->name);
         if (var->cvalue.dtypeEnum == DT_ARRAY) {
             *arrLen = var->cvalue.arr->length;
         }
@@ -1056,8 +1050,6 @@ int printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arr
                     fprintf(file, "for (int i = 0; i < len%i; i++){", id);
                     printVariable(file, 0, lvalue);
                     fprintf(file, "[off%i + i]=", id);
-                    printf("TREE: bex->opA\n");
-                    printf("bex->opA->flag: %i\n", bex->operandA->flags);
                     printForExpression(file, bex->operandA, lvalue, id);
                     fprintf(file, ";}");
 
@@ -1095,8 +1087,6 @@ int printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arr
                     }
                     printVariable(file, 0, lvalue);
                     fprintf(file, "[off%i+i]=", id);
-                    printf("TREE: bex->opB\n");
-                    printf("bex->opB->flag: %i\n", bex->operandB->flags);
                     printForExpression(file, bex->operandB, lvalue, id);
                     fprintf(file, ";}");
                 
@@ -1110,9 +1100,7 @@ int printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arr
                 
             }
 
-            printf("TREE: bex->opA req\n");
             const int idA = printArrayRValue(file, lvalue, bex->operandA, arrLen, prevId, pid);
-            printf("TREE: bex->opB req\n");
             const int idB = printArrayRValue(file, lvalue, bex->operandB, arrLen, prevId, pid);
             if (idA > 0) return idA;
             /*
@@ -1152,7 +1140,6 @@ int printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arr
 
         case EXT_STRING_INITIALIZATION : {
             
-            printf("TREE: string\n");
 
             StringInitialization* init = (StringInitialization*) ex;
             
@@ -1184,7 +1171,10 @@ int printArrayRValue(FILE* file, Variable* lvalue, Variable* var, Variable** arr
             sprintf(var->name, "a%i", var->id);
 
             printDataType(file, slice->arr->cvalue.dtypeEnum, slice->arr->cvalue.any);
-            fprintf(file, "* %s=", var->name);
+            if (slice->arr->cvalue.dtypeEnum != DT_POINTER) {
+                fputc('*', file);
+            }
+            fprintf(file, " %s=", var->name);
             printVariable(file, 0, slice->arr);
             fprintf(file, "+");
             printVariable(file, 0, slice->bidx);
@@ -1299,6 +1289,17 @@ void printArray(FILE* file, Variable* lvalue, Variable* rvalue) {
 
                 break;
             
+            }
+
+            if (bex->operType == OP_MEMBER_SELECTION) {
+
+                fprintf(file, ";{int off0=""0;int len0=");
+                printVariable(file, 0, bex->operandB->cvalue.arr->length);
+                fputc(';', file);
+                
+                var = rvalue;
+
+                break;
             }
 
         }
@@ -1847,7 +1848,6 @@ void printArrayInitialization(FILE* file, int level, ArrayInitialization* const 
         Variable* const var = node->attributes[(int) node->attributes.size() - 1];
 
         if (var->nameLen > 0) {
-            printf("%.*s_%i = ", var->nameLen, var->name, var->id);
             if (var->expression) {
                 c_printExpression(file, level, var->expression);
             } else {
@@ -1967,19 +1967,19 @@ void printFullDataType(FILE* file, Variable* var) {
     int type = var->cvalue.dtypeEnum;
 
     // pointers
-    while (type == DT_POINTER) {
+    while (ptr && type == DT_POINTER) {
         fputc('*', file);
         ptr = ptr->parentPointer;
-        type = ptr->pointsToEnum;
+        if (ptr) type = ptr->pointsToEnum;
     }
 
     // arrays
-    while (type == DT_ARRAY) {
+    while (ptr && type == DT_ARRAY) {
         fputc('[', file);
         printVariable(file, 0, ((Array*) ptr)->length);
         fputc(']', file);
         ptr = ptr->parentPointer;
-        type = ptr->pointsToEnum;
+        if (ptr) type = ptr->pointsToEnum;
     }
 
 }
@@ -2150,7 +2150,11 @@ void printLoop(FILE* file, int level, Loop* node, Variable* lvalue) {
     printVariable(file, level, idxVar);
     fputc('<', file);
     // c_printOperand(file, level, node->array->allocSize);
-    printVariable(file, 0, node->array->cvalue.arr->length);
+    if (node->array->cvalue.arr->length) {
+        printVariable(file, 0, node->array->cvalue.arr->length);
+    } else {
+        printArrayLenName(file, node->array);
+    }
     // fprintf(file, "%i;", node->array->cvalue.arr->length);
     fputc(';', file);
     //c_printVariable(file, level, ((Array*) node->array); 

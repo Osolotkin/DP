@@ -30,6 +30,8 @@ namespace Validator {
     Variable* findDefinition(Scope* scope, INamedVar* const inVar, int idx);
 
     int isUnique(Scope* sc, INamed* named, Location* loc);
+    
+    int computeSizeOfDataType(TypeDefinition* const def);
 
     int getFirstNonArrayDtype(Array* arr, int maxLevel = -1, int* level = NULL);
 
@@ -316,6 +318,22 @@ namespace Validator {
                 continue;
             }
 
+            // Data type itself represents its size
+            TypeDefinition* td = Utils::find<TypeDefinition>(scope, var->name, var->nameLen, &Scope::customDataTypes);
+            if (td) {
+                // TODO : it seems better to compute it later and here just collect all candidates
+
+                const int size = computeSizeOfDataType(td);
+                if (size < 0) return size;
+
+                var->cvalue.i64 = size;
+                var->cvalue.hasValue = 1;
+                var->cvalue.dtypeEnum = DT_INT_64;
+                
+                continue;
+            
+            }
+
             Logger::log(Logger::ERROR, ERR_STR(Err::UNKNOWN_VARIABLE), var->loc, var->nameLen, var->nameLen, var->name);
             return Err::UNKNOWN_VARIABLE;
             
@@ -417,16 +435,59 @@ namespace Validator {
         }
         */
 
+
+        // compute enum values
+        //
+
+        for (int i = 0; i < SyntaxNode::enumerators.size(); i++) {
+
+            Enumerator* en = SyntaxNode::enumerators[i];
+
+            int err;
+            int64_t lastValue = -1;
+            for (int i = 0; i < en->vars.size(); i++) {
+
+                Variable* var = en->vars[i];
+
+                if (var->expression) {
+
+                    err = evaluateDataTypes(var);
+                    if (err < Err::OK) return err;
+
+                    err = evaluate(var);
+                    if (err < Err::OK) return err;
+
+                }
+
+                var->unrollExpression = 0;
+                var->expression = NULL;
+
+                if (var->cvalue.hasValue) {
+                    lastValue = var->cvalue.i64;
+                } else {
+                    lastValue++;
+                    var->cvalue.i64 = lastValue;
+                    var->cvalue.hasValue = 1;
+                }
+
+            }
+
+        }
+
         // compute all cmptime vars
         //
         
         for (int i = 0; i < (int) SyntaxNode::cmpTimeVars.size(); i++) {
 
+            int err;
             Variable* var = SyntaxNode::cmpTimeVars[i];
 
             if (!(var->expression)) continue;
             
-            const int err = evaluate(var);
+            err = evaluateDataTypes(var);
+            if (err < Err::OK) return err;
+
+            err = evaluate(var);
             if (err < Err::OK) return err;
             
         }
@@ -505,9 +566,16 @@ namespace Validator {
                     stripWrapperExpressions(arr->length);
                     const int dt = evaluateDataTypes(arr->length);
                     if (dt > 0 && dt <= DT_UINT_64) {
+                        if (!(arr->length->cvalue.hasValue)) {
+                            const int err = evaluate(arr->length);
+                            if (err < 0) {
+                                Logger::log(Logger::ERROR, "TODO error: array length has to be known at compile time!", var->loc, 1);
+                                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
+                            }
+                        }
                         continue;
                     } else {
-                        Logger::log(Logger::ERROR, "TODO error: array length has to be int!");
+                        Logger::log(Logger::ERROR, "TODO error: array length has to be int!", var->loc, 1);
                         return Err::INVALID_DATA_TYPE;
                     }
                 }
@@ -562,7 +630,12 @@ namespace Validator {
                 continue;
             }
 
-            const int err = evaluate(arr->length);
+            int err;
+            
+            err =  evaluateDataTypes(arr->length);
+            if (err < Err::OK) return err;
+
+            err = evaluate(arr->length);
             if (err < Err::OK) return err;
 
         }
@@ -600,15 +673,34 @@ namespace Validator {
                 const int rtType = evaluateDataTypes(rt->var);
                 if (rtType < 0) return rtType;
 
+                // TODO : for now meh, later create validateCast that takes values
+                int err;
+                if (outValue->dtypeEnum == DT_POINTER) {
+                    Logger::mute = 1;
+                    err = validatePointerAssignment(&(rt->var->cvalue));
+                    Logger::mute = 0;
+                    if (err < 0) {
+                        err = validateImplicitCast(rt->var->cvalue.any, outValue->any, (DataTypeEnum)rtType, outValue->dtypeEnum);                    
+                    }
+                } else {
+                    err = validateImplicitCast(rt->var->cvalue.any, outValue->any, (DataTypeEnum)rtType, outValue->dtypeEnum);
+                }
+
+                if (err < 0) {
+                    int len = outValue->dtypeEnum == DT_CUSTOM ? fc->outArg->dtype->nameLen : dataTypes[outValue->dtypeEnum].nameLen;
+                    Logger::log(Logger::PLAIN, "", rt->loc);
+                    Logger::log(Logger::ERROR, "In following declaration:", fc->outArg->loc, len);
+                    return err;
+                }
+                /*
                 const int err = validateImplicitCast(rt->var->cvalue.any, outValue->any, (DataTypeEnum) rtType, outValue->dtypeEnum);
                 if (err < 0) {
                     if (outValue->dtypeEnum == DT_POINTER) {
                         const int err = validatePointerAssignment(&(rt->var->cvalue));
                         if (err < 0) return err;
                     }
-                        return err;
+                    return err;
                 }
-                /*
                 if (!validateImplicitCast((DataTypeEnum) rtType, fc->outArg)) {
                     Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_TYPE_CONVERSION), rt->loc, 1, (dataTypes + rtType)->name, (dataTypes + fc->outArg)->name);
                     return Err::INVALID_TYPE_CONVERSION;
@@ -650,7 +742,7 @@ namespace Validator {
             VariableAssignment* const varAss = SyntaxNode::variableAssignments[i];
 
             TypeDefinition* dtypeLDef = NULL;
-            
+
             DataTypeEnum dtypeL = (DataTypeEnum) evaluateDataTypes(varAss->lvar, &dtypeLDef);
             if (dtypeL < Err::OK) return dtypeL;
             
@@ -768,16 +860,27 @@ namespace Validator {
             
             Loop* loop = SyntaxNode::loops[i];
             
+            
+            stripWrapperExpressions(&(loop->array));
+
+            DataTypeEnum dtype = (DataTypeEnum) evaluateDataTypes(loop->array);
+            if (dtype != DT_ARRAY) {
+                Logger::log(Logger::ERROR, "Only array is allowed!", loop->loc, strlen(KWS_LOOP));
+                return Err::INVALID_DATA_TYPE;
+            }
+
+            Variable lenVar;
+            const int err = evaluateArrayLength(loop->array, &lenVar);
+            if (err < 0) return err;
+
+            //*(loop->array->cvalue.arr->length) = lenVar;
+            /*
             DataTypeEnum dtype = (DataTypeEnum) evaluate(loop->array);
             if (dtype < Err::OK) {
                 Logger::log(Logger::ERROR, "ASD", loop->loc, strlen(KWS_LOOP));
                 return dtype;
             }
-
-            if (dtype != DT_ARRAY) {
-                Logger::log(Logger::ERROR, "Only array is allowed!", loop->loc, strlen(KWS_LOOP));
-                return Err::INVALID_DATA_TYPE;
-            }
+            */
 
         }
 
@@ -848,6 +951,12 @@ namespace Validator {
         for (int i = 0; i < SyntaxNode::switchCases.size(); i++) {
             
             SwitchCase* const sw = SyntaxNode::switchCases[i];
+            
+            int dtype = evaluateDataTypes(sw->switchExp);
+            if (dtype < 0) {
+                Logger::log(Logger::ERROR, "TODO error", sw->loc, 1);
+                return dtype;
+            }
 
             for (int i = 0; i < sw->casesExp.size(); i++) {
                 
@@ -1297,9 +1406,11 @@ namespace Validator {
     }
 
     enum Score {
-        FOS_IMPLICIT_CAST,
-        FOS_SAME_SUBTYPE_SIZE_DECREASE,
-        FOS_SAME_SUBTYPE_NO_SIZE_DECREASE,
+        FOS_IMPLICIT_CAST = 1,
+        FOS_SIZE_DECREASE,
+        FOS_SIGN_CHANGE,
+        FOS_TO_FLOAT,
+        FOS_PROMOTION,
         FOS_EXACT_MATCH,
     };
 
@@ -1329,10 +1440,10 @@ namespace Validator {
 
             const std::vector<Function*> fcns = scope->fcns;
 
-            for (int i = 0; i < (int) fcns.size(); i++) {
+            for (int i = 0; i < (int)fcns.size(); i++) {
 
                 if (nameLen != fcns[i]->nameLen) continue;
-                    
+
                 char* const itemName = fcns[i]->name;
                 const int itemNameLen = fcns[i]->nameLen;
 
@@ -1342,15 +1453,20 @@ namespace Validator {
                 }
 
                 if (j == itemNameLen) {
-                    // it seems we cant do it 
-                    fCandidates.push_back({ fcns[i], 0 });
-                    /*
-                    if (fcns[i]->inArgsCnt == call->inArgsCnt) {
+
+                    const int fcnInCnt = fcns[i]->inArgs.size();
+                    const int callInCnt = call->inArgs.size();
+                    const int lastArgDtype = fcnInCnt > 0 ? fcns[i]->inArgs[fcnInCnt - 1]->var->cvalue.dtypeEnum : DT_UNDEFINED;
+                    
+                    if (
+                        fcnInCnt == callInCnt ||
+                        (fcnInCnt < callInCnt && lastArgDtype == DT_MULTIPLE_TYPES)
+                    ) {
                         fCandidates.push_back({ fcns[i], 0 });
                     }
-                    */
+
                 }
-                
+
             }
 
             scope = scope->scope;
@@ -1362,19 +1478,20 @@ namespace Validator {
     int findClosestFunction(Operand* callOp, Function** outFcn) {
 
         Scope* scope = callOp->scope;
-        FunctionCall* call = (FunctionCall*) callOp->expression;
+        FunctionCall* call = (FunctionCall*)callOp->expression;
         const int callInCnt = call->inArgs.size();
 
         findCandidateFunctions(scope, call);
 
         for (int j = 0; j < fCandidates.size(); j++) {
-            
+
             Function* fcn = fCandidates[j].fcn;
             int score = (fcn->inArgs.size() == 0) ? 100 : 0;
+            const int fcnInCnt = fcn->inArgs.size();
 
             int k = 0;
             for (int i = 0; i < fcn->inArgs.size(); i++) {
-                
+
                 if (k >= callInCnt) {
                     score = 0;
                     break;
@@ -1382,19 +1499,20 @@ namespace Validator {
 
                 Variable* fArg = fcn->inArgs[i]->var;
                 Variable* cArg = call->inArgs[k];
-                
+
                 k++;
 
                 const int fDtype = fArg->cvalue.dtypeEnum;
                 const int cDtype = evaluateDataTypes(cArg);
 
                 if (
-                    (fDtype == DT_CUSTOM && cDtype != DT_CUSTOM) || 
+                    (fDtype == DT_CUSTOM && cDtype != DT_CUSTOM) ||
                     (fDtype != DT_CUSTOM && cDtype == DT_CUSTOM)
-                ) {
+                    ) {
                     score = 0;
                     break;
-                } else if (fDtype == DT_CUSTOM) {
+                }
+                else if (fDtype == DT_CUSTOM) {
                     if (fArg->cvalue.def != cArg->cvalue.def) {
                         score = 0;
                         break;
@@ -1410,38 +1528,83 @@ namespace Validator {
                     continue;
                 }
 
-                if (IS_INT(cDtype) && IS_INT(fDtype)) {
-                    if ((cDtype - fDtype <= DT_UINT_64 - DT_INT_64)) {
-                        score += FOS_SAME_SUBTYPE_NO_SIZE_DECREASE;
-                    } else {
-                        score += FOS_SAME_SUBTYPE_SIZE_DECREASE;
+                if (IS_SIGNED_INT(cDtype) && IS_SIGNED_INT(fDtype)) {
+                    if (cDtype < fDtype) {
+                        score += FOS_PROMOTION;
+                    }
+                    else {
+                        score += FOS_SIZE_DECREASE;
                     }
                     continue;
+                }
+
+                if (IS_UNSIGNED_INT(cDtype) && IS_UNSIGNED_INT(fDtype)) {
+                    if (cDtype < fDtype) {
+                        score += FOS_PROMOTION;
+                    }
+                    else {
+                        score += FOS_SIZE_DECREASE;
+                    }
+                    continue;
+                }
+
+                if (
+                    IS_SIGNED_INT(cDtype) && IS_UNSIGNED_INT(fDtype) ||
+                    IS_SIGNED_INT(cDtype) && IS_UNSIGNED_INT(fDtype)
+                    ) {
+                    if ((cDtype - fDtype <= DT_UINT_64 - DT_INT_64)) {
+                        score += FOS_SIGN_CHANGE;
+                    }
+                    else {
+                        score += FOS_SIZE_DECREASE;
+                    }
+                    continue;
+
                 }
 
                 if (IS_FLOAT(cDtype) && IS_FLOAT(fDtype)) {
                     if ((cDtype - fDtype <= DT_UINT_64 - DT_INT_64)) {
-                        score += FOS_SAME_SUBTYPE_NO_SIZE_DECREASE;
-                    } else {
-                        score += FOS_SAME_SUBTYPE_SIZE_DECREASE;
+                        score += FOS_PROMOTION;
+                    }
+                    else {
+                        score += FOS_SIZE_DECREASE;
                     }
                     continue;
                 }
 
-                if (validateImplicitCast((DataTypeEnum) cDtype, (DataTypeEnum) fDtype)) {
+                if (IS_INT(cDtype) && IS_FLOAT(fDtype)) {
+                    score += FOS_SIGN_CHANGE;
+                    continue;
+                }
+
+                if (IS_FLOAT(cDtype) && IS_INT(fDtype)) {
+                    score += FOS_SIZE_DECREASE;
+                    continue;
+                }
+
+                if (validateImplicitCast((DataTypeEnum)cDtype, (DataTypeEnum)fDtype)) {
                     score += FOS_IMPLICIT_CAST;
                     continue;
                 }
 
+                if (fDtype == DT_ARRAY && cDtype == DT_STRING) {
+                    // TODO: for now as quick patch
+                    score += FOS_IMPLICIT_CAST;
+                    continue;
+                }
+
+                break;
+
+            }
+
+            if (score != 0) {
+                fCandidates[j].score = score;
+            } else {
                 FunctionScore tmp = fCandidates[fCandidates.size() - 1];
                 fCandidates[j] = tmp;
                 fCandidates.pop_back();
                 j--;
-                
-                break;
-
             }
-            fCandidates[j].score = score;
 
         }
 
@@ -1568,6 +1731,10 @@ namespace Validator {
     int validateAttributeCast(Variable* var, Variable* attribute) {
 
         // Variable* op, TypeDefinition** customDtype, DataTypeEnum lvalueType, TypeDefinition* lvalueTypeDef
+        const int id = attribute->id;
+        char* const name = attribute->name;
+        const int nameLen = attribute->nameLen;
+        
         VariableDefinition* def = var->def;
         DataTypeEnum dtypeA = (DataTypeEnum) evaluateDataTypes(
             attribute,
@@ -1575,6 +1742,10 @@ namespace Validator {
             def ? def->var->cvalue.dtypeEnum : DT_UNDEFINED,
             def ? def->var->cvalue.def : NULL
         );
+
+        attribute->id = id;
+        attribute->name = name;
+        attribute->nameLen = nameLen;
 
         DataTypeEnum dtypeB = (DataTypeEnum) evaluateDataTypes(var);
 
@@ -1688,6 +1859,65 @@ namespace Validator {
 
     }
 
+    // TODO
+    int computeSizeOfDataType(TypeDefinition* const def) {
+
+        if (def->size > 0) return def->size;
+
+        const int isUnion = def->type == NT_UNION;
+
+        int accSize = 0;
+        for (int i = 0; i < def->vars.size(); i++) {
+            
+            Variable* const var = def->vars[i];
+            
+            int size = 0;
+            switch (var->cvalue.dtypeEnum) {
+                
+                case DT_CUSTOM: {
+                    size = computeSizeOfDataType(var->cvalue.def);
+                    break;
+                }
+
+                case DT_ARRAY: {
+                    
+                    Array* const arr = var->cvalue.arr;
+                    evaluate(arr->length);
+                    
+                    if (!(arr->length->cvalue.hasValue)) {
+                        Logger::log(Logger::ERROR, "Was unable to compute array length while computing size of the %.*s!", var->loc, var->nameLen, def->nameLen, def->name);
+                        return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
+                    }
+
+                    int chunkSize = 0;
+                    if (arr->pointsToEnum == DT_CUSTOM) {
+                        chunkSize = computeSizeOfDataType((TypeDefinition*) arr->pointsTo);
+                    } else {
+                        chunkSize = dataTypes[arr->pointsToEnum].size;
+                    }
+
+                    size = chunkSize * arr->length->cvalue.i64;
+
+                    break;
+                }
+
+                default: {
+                    size = dataTypes[var->def->var->cvalue.dtypeEnum].size;
+                    break;
+                }
+            
+            }
+
+            if (isUnion) accSize = size > accSize ? size : accSize;
+            else accSize += size;
+
+        }
+
+        def->size = accSize;
+        return accSize;
+
+    }
+
     int validateFunctionCall(Variable* fcnCallOp) {
 
         // Variable* fcnCallOp = SyntaxNode::fcnCalls[i];
@@ -1733,7 +1963,7 @@ namespace Validator {
                 Variable* var = fcnCallVar;
                 stripWrapperExpressions((Variable**) & var);
                 if (!(var->def) || !(var->def->var->cvalue.arr)) {
-                    Logger::log(Logger::ERROR, "TODO error: array expected!");
+                    Logger::log(Logger::ERROR, "TODO error: array expected!", fcnCallVar->loc, fcnCallVar->nameLen);
                     return Err::ARRAY_EXPECTED;
                 }
 
@@ -2048,10 +2278,14 @@ namespace Validator {
 
                             Array* arr = bex->operandA->cvalue.arr;
 
+                            if (customDtype) {
+                                *customDtype = (TypeDefinition*)bex->operandA->cvalue.arr->pointsTo;
+                            }
+
                             if (dtypeB == DT_UNDEFINED) {
                                 // appending to array, so returning array
                                 op->cvalue.any = arr;
-                                rdtype = DT_ARRAY;
+                                rdtype = DT_ARRAY;                                
                                 break;
                             }
 
@@ -2069,6 +2303,10 @@ namespace Validator {
 
                             op->cvalue.any = ptr->pointsTo;
                             rdtype = ptr->pointsToEnum;
+
+                            if (customDtype) {
+                                *customDtype = (TypeDefinition*) bex->operandA->cvalue.ptr->pointsTo;
+                            }
                         
                         } else {
 
@@ -2112,8 +2350,13 @@ namespace Validator {
                                 Logger::log(Logger::ERROR, "Unable to find member of enum!", bex->operandB->loc, 0);
                                 return Err::UNEXPECTED_SYMBOL;
                             }
-                            op->expression = NULL; // need to be fixed other way, should happen with refactoring
-                            copy(op, var);
+
+                            // just a patch, be fixed other way, should happen with refactoring
+                            // TODO : dont forget, otherwise memory leak...
+                            WrapperExpression* tmp = new WrapperExpression();
+                            tmp->operand = var;
+                            op->expression = tmp;
+                            
                             return ((Enumerator*) customDtypeA)->dtype;
                         
                         }
@@ -2153,7 +2396,11 @@ namespace Validator {
                     case OP_BOOL_AND :
                     case OP_BOOL_OR :
                     case OP_EQUAL :
-                    case OP_NOT_EQUAL : {
+                    case OP_NOT_EQUAL :
+                    case OP_LESS_THAN :
+                    case OP_GREATER_THAN :
+                    case OP_LESS_THAN_OR_EQUAL :
+                    case OP_GREATER_THAN_OR_EQUAL : {
                         
                         const int isAValid = dtypeA <= DT_FLOAT_64 || dtypeA == DT_POINTER || dtypeA == DT_ERROR;
                         const int isBValid = dtypeB <= DT_FLOAT_64 || dtypeB == DT_POINTER || dtypeB == DT_ERROR;
@@ -2371,7 +2618,11 @@ namespace Validator {
             if (dtype == DT_CUSTOM && customDtype) {
                 *customDtype = op->def->var->cvalue.def;
             }
-            
+
+            if (op->def && !(op->cvalue.hasValue)) {
+                op->cvalue = op->def->var->cvalue;
+            }
+
             return dtype;
         
         }

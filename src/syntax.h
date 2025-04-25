@@ -325,7 +325,7 @@ struct Operator {
 };
 
 // indexed by OperatorEnum
-// !!! CAUTION : on change some update :
+// !!! CAUTION : on change update :
 //               operatorFunctions in interpreter.cpp
 //               ... maybe some other stuff ...
 constexpr auto operators = std::to_array<Operator>({
@@ -333,91 +333,91 @@ constexpr auto operators = std::to_array<Operator>({
     // OP_UNARY_PLUS
     {
         '+',
-        4,
+        1,
         IS_UNARY | IS_ONE_CHAR
     },
 
     // OP_UNARY_MINUS
     {
         '-',
-        4,
+        1,
         IS_UNARY | IS_ONE_CHAR
     },
 
     // OP_ADDITION
     {
         '+',
-        4,
+        3,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_SUBTRACTION
     {
         '-',
-        4,
+        3,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_MULTIPLICATION
     {
         '*',
-        3,
+        2,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_DIVISION
     {
         '/',
-        3,
+        2,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_MODULO
     {
         '%',
-        3,
+        2,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_GET_ADDRESS
     {
         '&',
-        4,
+        1,
         IS_UNARY | IS_ONE_CHAR
     },
 
     // OP_GET_VALUE
     {
-        '*',
-        4,
+        '^',
+        1,
         IS_UNARY | IS_ONE_CHAR
     },
 
     // OP_BITWISE_AND
     {
         '&',
-        4,
+        7,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_BITWISE_OR
     {
         '|',
-        4,
+        9,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_BITWISE_XOR
     {
         '^',
-        4,
+        8,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_BITWISE_NEGATION
     {
         '~',
-        4,
+        1,
         IS_BINARY | IS_ONE_CHAR
     },
 
@@ -438,14 +438,14 @@ constexpr auto operators = std::to_array<Operator>({
     // OP_EQUAL
     {
         toDoubleChar('=', '='),
-        5,
+        6,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_NOT_EQUAL
     {
         toDoubleChar('!', '='),
-        5,
+        6,
         IS_BINARY | IS_TWO_CHAR
     },
 
@@ -480,56 +480,56 @@ constexpr auto operators = std::to_array<Operator>({
     // OP_BOOL_AND
     {
         toDoubleChar('&', '&'),
-        5,
+        10,
         IS_BINARY | IS_TWO_CHAR
     },
 
     // OP_BOOL_OR
     {
         toDoubleChar('|', '|'),
-        5,
+        11,
         IS_UNARY | IS_TWO_CHAR
     },
 
     // OP_INCREMENT
     {
         toDoubleChar('+', '+'),
-        5,
+        0,
         IS_UNARY | IS_TWO_CHAR
     },
 
     // OP_DECREMENT
     {
         toDoubleChar('-', '-'),
-        5,
+        0,
         IS_UNARY | IS_TWO_CHAR
     },
 
     // OP_SUBSCRIPT
     {
         '[',
-        2,
+        0,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_MEMBER_SELECTION
     {
         '.',
-        1,
+        0,
         IS_BINARY | IS_ONE_CHAR
     },
 
     // OP_DEREFERENCE_MEMBER_SELECTION
     {
         '.',
-        4,
+        0,
         IS_UNARY | IS_ONE_CHAR
     },
 
     // OP_NEGATION
     {
         '!',
-        4,
+        1,
         IS_UNARY | IS_ONE_CHAR
     },
 
@@ -713,8 +713,12 @@ struct Value {
     DataTypeEnum dtypeEnum;
     int hasValue = 0;
     union {
+        int8_t      i8;
+        int16_t     i16;
         int32_t     i32;
         int64_t     i64;
+        uint8_t     u8;
+        uint16_t    u16;
         uint32_t    u32;
         uint64_t    u64;
         float_t     f32;
@@ -1162,6 +1166,8 @@ enum DataTypeEnum : int {
 const int DATA_TYPES_COUNT = DT_UNDEFINED + 1;
 
 #define IS_INT(x) ((x) >= DT_INT && (x) <= DT_UINT_64)
+#define IS_SIGNED_INT(x) ((x) >= DT_INT && (x) <= DT_INT_64)
+#define IS_UNSIGNED_INT(x) ((x) >= DT_UINT_8 && (x) <= DT_UINT_64)
 #define IS_FLOAT(x) ((x) >= DT_FLOAT_32 && (x) <= DT_FLOAT_64)
 
 struct DataType : INamedEx {
