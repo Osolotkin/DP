@@ -361,7 +361,7 @@ namespace Utils {
             } else if (ch == EOL) {
                 lines++;
             } else if (ch == EOS) {
-                //Logger::log(Logger::ERROR, "Unexpected end of file! Showing the start of the relevant section.", loc, 1);
+                Logger::log(Logger::ERROR, "Unexpected end of file! Showing the start of the relevant section.", loc, 1);
                 loc->idx = i;
                 loc->line += lines;
                 return Err::UNEXPECTED_END_OF_FILE; // maybe special error?

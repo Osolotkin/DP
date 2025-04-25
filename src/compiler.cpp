@@ -104,12 +104,17 @@ int build() {
     std::filesystem::path exePath = Utils::getExePath();
     
     std::string libPath = (exePath / "../tcc/lib").string();
-    std::string tccIncPath = 
-    #ifdef _WIN32
-        (exePath / "../tcc/inc").string();
-    #else
-        "/usr/include";
-    #endif
+    
+    std::string tccIncPath[] = {
+        #ifdef _WIN32
+            (exePath / "../tcc/inc").string(),
+            (exePath / "../tcc/inc/winapi").string()
+        #else
+            "/usr/include"
+        #endif
+    };
+    const int tccIncPathLen = sizeof(tccIncPath) / sizeof(std::string);
+
     std::string resIncPath = (exePath / "../resources").string();
 
     TCCState *state = tcc_new();
@@ -138,8 +143,15 @@ int build() {
         return Err::TCC_ERROR;
     }
 
+    for (int i = 0; i < tccIncPathLen; i++) {
+        if (tcc_add_include_path(state, tccIncPath[i].c_str()) < 0) {
+            Logger::log(Logger::ERROR, "TCC: Failed to add include path.\n");
+            tcc_delete(state);
+            return Err::TCC_ERROR;
+        }
+    }
+    
     if (
-        tcc_add_include_path(state, tccIncPath.c_str()) < 0 ||
         tcc_add_include_path(state, resIncPath.c_str()) < 0 ||
         tcc_add_include_path(state, ".") < 0
     ) {

@@ -25,5 +25,6 @@ tmp/*
 !test/Functions
 !test/Loops
 !test/Namespaces
+!test/Tetris
 
 !thesis/main.pdf

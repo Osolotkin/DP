@@ -85,6 +85,8 @@ namespace Parser {
     inline void offsetParentIdx(std::vector<SyntaxNode*> vec, const int offset);
 
     VariableDefinition* createEmptyVariableDefinition();
+    
+    int isArrayLHS(char* const str, Location* loc);
 
 
 
@@ -161,6 +163,14 @@ namespace Parser {
     };
 
     const int TYPEDEF_KEY_WORDS_COUNT = sizeof(typedefKeyWords) / sizeof(KeyWord);
+
+
+
+    const KeyWord arrayKeyWords[] = {
+        {0, KWS_CONST},
+    };
+
+    const int ARRAY_KEY_WORDS_COUNT = sizeof(arrayKeyWords) / sizeof(KeyWord);
 
 
 
@@ -390,7 +400,7 @@ namespace Parser {
     }
 
 
-   
+
     inline void setParentIdx(SyntaxNode* node) {
         node->parentIdx = node->scope->children.size();
     }
@@ -668,13 +678,17 @@ namespace Parser {
                 return Err::OK;
             }
 
+            Location tmpLoc = *loc;
+            Logger::mute = 1;
             const int err = Utils::skipWhiteSpacesAndComments(str, loc);
+            Logger::mute = 0;
             if (err < 0) {
 
                 if (err == Err::UNTERMINATED_COMMENT) return Err::UNTERMINATED_COMMENT;
                 if (scopeType == SC_GLOBAL) return Err::OK;
 
-                Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_END_OF_FILE), loc);
+                // TODO
+                Logger::log(Logger::ERROR, "Unexpected end of file! Showing the start of the relevant section.", &tmpLoc, 1);
                 return Err::UNEXPECTED_END_OF_FILE;
 
             }
@@ -835,8 +849,12 @@ namespace Parser {
 
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
+
                     const char tmpCh = str[loc->idx];
-                    if (wordLen <= 0 || (!IS_ALLOWED_VARIABLE_CHAR(tmpCh) && tmpCh != POINTER_SYMBOL)) {
+                    if (
+                        wordLen <= 0 || 
+                        (!IS_ALLOWED_VARIABLE_CHAR(tmpCh) && tmpCh != POINTER_SYMBOL && !isArrayLHS(str, loc))
+                    ) {
 
                         COPY_LOC(loc, startLoc);
 
@@ -2093,7 +2111,33 @@ namespace Parser {
     }
         */
 
-    int parseKeyWord(KeyWordType keyWord, Scope *scope, char *const str, Location *loc, uint64_t param) {
+
+    // whatever, just as fast patch
+    int isArrayLHS(char* const str, Location* loc) {
+
+        int idx = loc->idx;
+        
+        if (str[idx] != ARRAY_BEGIN) return 0;
+        idx++;
+
+        // comments are not handled, but this whole thing
+        // is not gonna be there
+        char* tmpStr = Utils::findChar(str + idx, ARRAY_END);
+        if (!tmpStr) return 0;
+        tmpStr++;
+        
+        Logger::mute = 1;
+        Location tmpLoc = *loc;
+        tmpLoc.idx = 0;
+        if (Utils::skipWhiteSpacesAndComments(tmpStr, &tmpLoc) < 0) return 0;
+        Logger::mute = 0;
+        
+        idx = Utils::findVarEnd(tmpStr + tmpLoc.idx);
+        return idx != 0;
+
+    }
+
+    int parseKeyWord(KeyWordType keyWord, Scope* scope, char* const str, Location* loc, uint64_t param) {
 
         switch (keyWord) {
 
@@ -2282,38 +2326,21 @@ namespace Parser {
 
                 ASSIGN_ID(fcn);
 
-                // TODO : remove?
-                /*
-                Function *prevDefFcn = findFunction(scope, fcn->name, fcn->nameLen);
-                if (prevDefFcn) {
-                    // fcn allready defined
-                    // TODO : store in variable last position to report
-
-                    Logger::log(Logger::ERROR, ERR_STR(Err::FUNCTION_ALREADY_DEFINED), loc, fcn->nameLen);
-                    return Err::FUNCTION_ALREADY_DEFINED;
-                
-                }
-                */
-
                 loc->idx += wordLen;
 
                 int withoutClosure = 0;
                 int linesSkipped = 0;
 
+                if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+
                 if (str[loc->idx] != FUNCTION_START) {
 
-                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-
-                    if (str[loc->idx] != FUNCTION_START) {
-
-                        if (str[loc->idx] == SCOPE_BEGIN) {
-                            goto fcnParseScope;
-                        }
-
-                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
-                        return Err::UNEXPECTED_SYMBOL;
-                    
+                    if (str[loc->idx] == SCOPE_BEGIN) {
+                        goto fcnParseScope;
                     }
+
+                    Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
+                    return Err::UNEXPECTED_SYMBOL;
                 
                 }
 
@@ -2410,7 +2437,8 @@ namespace Parser {
                     if (tmp != ('-' | ('>' << 8))) {
 
                         if ((tmp & 0xFF) == SCOPE_BEGIN) {
-                            if (foreignLang) loc->idx++;
+                            //if (foreignLang) loc->idx++;
+                            loc->idx++;
                             goto fcnParseScope;
                         }
 
@@ -2424,69 +2452,23 @@ namespace Parser {
 
                 loc->idx += 2;
 
-                if (str[loc->idx] != FUNCTION_START) {
-
-                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-
-                    if (str[loc->idx] != FUNCTION_START) {
-                        withoutClosure = 1;
-                        // Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL));
-                        // return Err::UNEXPECTED_SYMBOL;
-                    } else {
-                        loc->idx++;
-                    }
-                
-                } else {
-                    loc->idx++;
-                }
-
                 // parse output
-
-                while (1) {
+                {
+                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
+            
+                    DataTypeEnum dtype = (DataTypeEnum) parseDataType(scope, str, loc, 0, fcn->outArg);
+                    if (dtype < 0) return dtype;
 
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-
-                    // LOOK AT : process this out of the loop for the first time
-                    if (str[loc->idx] == FUNCTION_END) {
-
-                        if (withoutClosure) {
-                            Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
-                            return Err::UNEXPECTED_SYMBOL;
-                        }
-
-                        loc->idx++;
-                        break;
-
-                    } else if (withoutClosure && str[loc->idx] == SCOPE_BEGIN) {
-
-                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
-                        return Err::UNEXPECTED_SYMBOL;
                     
-                    }
-
-                    // data type
-                    char *const dtypeName = str + loc->idx;
-                    const int dtypeLen = Utils::findVarEnd(dtypeName);
-                    const int dtype = findDataType(dtypeName, dtypeLen);
-
-                    loc->idx += dtypeLen;
-
-                    fcn->outArg->var->cvalue.dtypeEnum = (DataTypeEnum) ((dtype == DT_UNDEFINED) ? DT_CUSTOM : dtype);
-
-                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-
+                    // TODO : add option for ':'
                     const char ch = str[loc->idx];
-                    if (ch == ',') {
-                        // TODO : handle ERROR
+                    if (ch == SCOPE_BEGIN) {
                         loc->idx++;
-                    } else if (ch == (withoutClosure ? SCOPE_BEGIN : FUNCTION_END)) {
-                        loc->idx++;
-                        break;
                     } else {
-                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
+                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc, 1);
                         return Err::UNEXPECTED_SYMBOL;
                     }
-
                 }
 
             fcnParseScope:
@@ -2508,19 +2490,6 @@ namespace Parser {
                 }
 
                 fcn->internalIdx = 0;
-
-                if (!withoutClosure) {
-
-                    if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
-
-                    if (str[loc->idx] != SCOPE_BEGIN) {
-                        Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), loc);
-                        return Err::UNEXPECTED_SYMBOL;
-                    }
-
-                    loc->idx++;
-                
-                }
 
                 //Scope* newScope = new Scope;
                 //newScope->fcn = currentFunction;
@@ -2861,6 +2830,7 @@ namespace Parser {
                 
                 //pushDefLike(bodyScope->scope->defSearch, bodyScope);
 
+                SyntaxNode* tmpLoop = currentLoop;
                 currentLoop = loop;
                 
                 err = parseScope(bodyScope, str, loc);
@@ -2872,7 +2842,7 @@ namespace Parser {
                     bodyScope->variables.push_back(ass->lvar);
                 }
                 
-                currentLoop = NULL;
+                currentLoop = tmpLoop;
 
                 loop->scope = scope;
                 loop->bodyScope = bodyScope;
@@ -2915,12 +2885,13 @@ namespace Parser {
                 err = parseExpression(newOperand, str, loc, SCOPE_BEGIN);
                 if (err < 0) return err;
 
+                SyntaxNode* tmpLoop = currentLoop;
                 currentLoop = loop;
                 
                 err = parseScope(newScope, str, loc);
                 if (err < 0) return err;
                 
-                currentLoop = NULL;
+                currentLoop = tmpLoop;
 
                 loop->scope = scope;
                 loop->bodyScope = newScope;
@@ -3044,7 +3015,7 @@ namespace Parser {
                     Variable* newVar = new Variable(scope, dtype, loc);
 
                     newVarDef->var = newVar;
-                    newVarDef->var->cvalue.hasValue = 1;
+                    newVarDef->var->cvalue.hasValue = 0;
                     newVarDef->var->cvalue.dtypeEnum = dtype;
                     newVarDef->loc = getLocationStamp(loc);
                     newVarDef->flags = IS_CMP_TIME;
@@ -3056,7 +3027,7 @@ namespace Parser {
 
                     ASSIGN_ID(newVar);
 
-                    SyntaxNode::cmpTimeVars.push_back(newVar);
+                    // SyntaxNode::cmpTimeVars.push_back(newVar);
 
                     enumerator->vars.push_back(newVar);
 
@@ -3066,24 +3037,19 @@ namespace Parser {
                         loc->idx++;
 
                         err = parseExpression(newVar, str, loc, CHAR_CAT(',', SCOPE_END));
+                        newVarDef->var->cvalue.hasValue = 1;
+                        // SyntaxNode::cmpTimeVars.push_back(newVar);
+
                         if (err < 0) return err;
 
                         if (str[loc->idx - 1] == SCOPE_END) loc->idx--;
 
-                        lastValue = newVar->cvalue.i64;
-                    
                     } else if (ch == ',') {
-
-                        lastValue++;
-                        newVar->cvalue.i64 = lastValue;
 
                         loc->idx++;
                     
                     } else if (ch == SCOPE_END) {
-
-                        lastValue++;
-                        newVar->cvalue.i64 = lastValue;
-
+                        
                         loc->idx++;
                         break;
                     
@@ -3391,12 +3357,13 @@ namespace Parser {
 
                 //pushDefLike(loop->scope->defSearch, loop->bodyScope);
                 
+                SyntaxNode* tmpLoop = currentLoop;
                 currentLoop = loop;
                 
                 const int err = parseScope(loop->bodyScope, str, loc);
                 if (err < 0) return err;
                 
-                currentLoop = NULL;
+                currentLoop = tmpLoop;
 
                 SyntaxNode::loops.push_back(loop);
                 scope->children.push_back(loop);
@@ -3947,7 +3914,11 @@ namespace Parser {
 
         const int lastDefIdx = (defIdx < 0) ? operand->scope->children.size() : defIdx;
 
-        int lastOperatorRank = 0;
+        int lowestOperatorRank = -1;
+        Variable* lowestBinaryOperand = NULL;
+        
+
+        int lastOperatorRank = -1;
         UnaryExpression* lastUnaryExpression = NULL;
         BinaryExpression* lastBinaryExpression = NULL;
         int lastType = G_NONE;
@@ -4015,7 +3986,7 @@ namespace Parser {
                 else {
 
                     if (lastUnaryExpression) lastUnaryExpression->operand = newOperand;
-                    else ((BinaryExpression*)operand->expression)->operandB = newOperand;
+                    else lastBinaryExpression->operandB = newOperand;
 
                 }
 
@@ -4042,7 +4013,7 @@ namespace Parser {
                     operand->expression = ex;
                 } else {
                     if (lastUnaryExpression) lastUnaryExpression->operand = newOperand;
-                    else ((BinaryExpression*)operand->expression)->operandB = newOperand;
+                    else lastBinaryExpression->operandB = newOperand;
                 }
 
                 loc->idx--;
@@ -4082,7 +4053,7 @@ namespace Parser {
                     operand->expression = ex;
                 } else {
                     if (lastUnaryExpression) lastUnaryExpression->operand = var;
-                    else ((BinaryExpression*)operand->expression)->operandB = var;
+                    else lastBinaryExpression->operandB = var;
                 }
 
                 loc->idx--;
@@ -4113,7 +4084,7 @@ namespace Parser {
                 else {
 
                     if (lastUnaryExpression) lastUnaryExpression->operand = newOperand;
-                    else ((BinaryExpression*)operand->expression)->operandB = newOperand;
+                    else lastBinaryExpression->operandB = newOperand;
 
                 }
 
@@ -4146,7 +4117,7 @@ namespace Parser {
                 } else {
 
                     if (lastUnaryExpression) lastUnaryExpression->operand = newOperand;
-                    else ((BinaryExpression*) operand->expression)->operandB = newOperand;
+                    else lastBinaryExpression->operandB = newOperand;
                 
                 }
 
@@ -4298,7 +4269,7 @@ namespace Parser {
                             
                         }
 
-                        Logger::log(Logger::ERROR, ERR_STR(Err::INVALID_VARIABLE_NAME), loc, wordLen, "Variable name is matching key word name!");
+                        Logger::log(Logger::ERROR, "Variable name is matching key word name!", loc, wordLen);
                         return Err::INVALID_VARIABLE_NAME;
                     }
 
@@ -4356,10 +4327,12 @@ namespace Parser {
                         
                         } else {
 
-                            if (lastUnaryExpression) {
-                                lastUnaryExpression->operand = var;
-                            } else {
-                                ((BinaryExpression *)operand->expression)->operandB = var;
+                            if (lastUnaryExpression) lastUnaryExpression->operand = var;
+                            else if (lastBinaryExpression) lastBinaryExpression->operandB = var;
+                            else {
+                                Logger::log(Logger::ERROR, ERR_STR(Err::UNEXPECTED_SYMBOL), var->loc, var->nameLen);
+                                return Err::UNEXPECTED_SYMBOL;
+                            
                             }
                         
                         }
@@ -4428,7 +4401,7 @@ namespace Parser {
                         } else {
 
                             if (lastUnaryExpression) lastUnaryExpression->operand = newOperand;
-                            else ((BinaryExpression*) operand->expression)->operandB = newOperand;
+                            else lastBinaryExpression->operandB = newOperand;
                         
                         }
 
@@ -4470,7 +4443,7 @@ namespace Parser {
                         newVar->unrollExpression = 0; // LOOK AT : do we have to set it?
 
                         if (lastUnaryExpression) lastUnaryExpression->operand = newVar;
-                        else ((BinaryExpression*) operand->expression)->operandB = newVar;
+                        else lastBinaryExpression->operandB = newVar;
                     
                     }
 
@@ -4506,6 +4479,7 @@ namespace Parser {
 
                     Variable* operandB = idxOperand;
 
+                    // TODO : merge
                     if (str[loc->idx - 1] == ':') {
                         // slice
 
@@ -4533,14 +4507,20 @@ namespace Parser {
 
                         Variable* arr;
                         if (lastUnaryExpression) {
-                            arr = ((UnaryExpression*) (operand->expression))->operand;
-                            ((UnaryExpression*) (operand->expression))->operand = newOperand;
+
+                            arr = lastUnaryExpression->operand;
+                            lastUnaryExpression->operand = newOperand;
+                        
                         } else if (lastBinaryExpression) {
-                            arr = ((BinaryExpression*) (operand->expression))->operandB;
+                            
+                            arr = lastBinaryExpression->operandB;
                             ((BinaryExpression*) (operand->expression))->operandB = newOperand;
+                        
                         } else {
+                            
                             arr = ((WrapperExpression*) (operand->expression))->operand;
                             ((WrapperExpression*) (operand->expression))->operand = newOperand;
+                        
                         }
 
                         slice->arr = arr;
@@ -4567,20 +4547,21 @@ namespace Parser {
                     newOperand->expression = bEx;
 
                     if (lastUnaryExpression) {
-                        bEx->operandA = ((UnaryExpression*) (operand->expression))->operand;
-                        ((UnaryExpression*) (operand->expression))->operand = newOperand;
+
+                        bEx->operandA = lastUnaryExpression->operand;
+                        lastUnaryExpression->operand = newOperand;
+                    
                     } else if (lastBinaryExpression) {
-                        if (lastOperatorRank >= operators[OP_SUBSCRIPT].rank) {
-                            bEx->operandA = ((BinaryExpression*) (operand->expression))->operandB;
-                            ((BinaryExpression*) (operand->expression))->operandB = newOperand;
-                        } else {
-                            newOperand->expression = operand->expression;
-                            bEx->operandA = newOperand;
-                            operand->expression = bEx;
-                        }
+                        
+                        // for now allways treated as highest priority
+                        bEx->operandA = lastBinaryExpression->operandB;
+                        lastBinaryExpression->operandB = newOperand;
+                    
                     } else {
+
                         bEx->operandA = ((WrapperExpression*) (operand->expression))->operand;
                         ((WrapperExpression*) (operand->expression))->operand = newOperand;
+                    
                     }
 
                     // operand->expression = bEx;
@@ -4642,11 +4623,10 @@ namespace Parser {
                         newVar->scope = operand->scope;
                         newVar->expression = uEx;
 
-                        if (lastUnaryExpression == NULL) {
-                            // LOOK_AT: is it allways binary at this point?
-                            ((BinaryExpression*) operand->expression)->operandB = newVar;
-                        } else {
+                        if (lastUnaryExpression) {
                             lastUnaryExpression->operand = newVar;
+                        } else {
+                            lastBinaryExpression->operandB = newVar;
                         }
 
                         lastUnaryExpression = uEx;
@@ -4685,36 +4665,95 @@ namespace Parser {
                         newVar->scope = operand->scope;
 
                         // LOOK_AT: maybe change design to allways somehow have root as expression, so we dont have to check or something
+                        // lower rank value has higher precedence
+                        // if next operator has higher precedence
+                        //      : new expression is created and previous operand takes its at 'a' slot
+                        //      : this expresion is then expresion of the 'b' slot of current expression
+                        //      : new expression is then capsulated from previous
+                        // if nex operand has lower precedence
+                        //      : whole expression is capsulated
+                        //      : new expression is new root with 'a' as previous one
+                        //      : new expression is then executed as last
                         const int operatorRank = op.rank;
                         if (lastOperatorRank > operatorRank) {
+                            // higher precedence
 
-                            newVar->expression = bEx;
-
-                            Variable* tmpVar = (Variable*) (((BinaryExpression *)operand->expression)->operandB);
-                            ((BinaryExpression*) operand->expression)->operandB = newVar;
+                            Variable* tmpVar = lastBinaryExpression->operandB;
+                            lastBinaryExpression->operandB = newVar;
+                            
                             bEx->operandA = tmpVar;
+                            bEx->operandB = NULL;
+                            bEx->operType = opType;
 
-                            operand = newVar;
+                            newVar->expression = bEx; 
 
-                        } else if (operand->expression) {
-
-                            newVar->expression = operand->expression;
-                            bEx->operandA = newVar;
-                        
                         } else {
+                            // lower precedence
+                            
+                            if (lowestOperatorRank == -1) {
+                                // initial
+                                newVar->unrollExpression = operand->unrollExpression;
+                                newVar->cvalue = operand->cvalue;
+                                newVar->expression = operand->expression;
 
-                            newVar->cvalue.dtypeEnum = operand->cvalue.dtypeEnum;
-                            // newVar->dataType = operand->dataType;
-                            newVar->cvalue.i64 = operand->cvalue.i64;
-                            newVar->expression = NULL;
-                            bEx->operandA = newVar;
-                        
+                                bEx->operandA = newVar;
+                                bEx->operandB = NULL;
+                                bEx->operType = opType;
+
+                                operand->expression = bEx;
+
+                                lowestOperatorRank = operatorRank;
+                                lowestBinaryOperand = operand;
+                            
+                            } else if (lowestOperatorRank > operatorRank) {
+                                
+                                BinaryExpression* const tmpBEx = (BinaryExpression*) (lowestBinaryOperand->expression);
+                                Variable* tmpVar = tmpBEx->operandB;
+                                tmpBEx->operandB = newVar;
+
+                                bEx->operandA = tmpVar;
+                                bEx->operandB = NULL;
+                                bEx->operType = opType;
+
+                                newVar->expression = bEx;
+
+                                lowestBinaryOperand = newVar;
+                                lowestOperatorRank = operatorRank;
+                            
+                            } else {
+
+                                Variable* const op = lowestBinaryOperand;
+
+                                newVar->def = op->def;
+                                newVar->unrollExpression = op->unrollExpression;
+                                newVar->cvalue = op->cvalue;
+                                newVar->expression = op->expression;
+
+                                bEx->operandA = newVar;
+                                bEx->operandB = NULL;
+                                bEx->operType = opType;
+
+                                op->expression = bEx;
+
+                                lowestOperatorRank = operatorRank;
+                                lowestBinaryOperand = op;
+                            
+                            }
+                            //BinaryExpression* const tmpBEx = (BinaryExpression*) (lowestBinaryOperand->expression);
+                            //Variable* tmpVar = tmpBEx->operandB;
+                            //tmpBEx->operandB = newVar;
+
+                            //bEx->operandA = tmpVar;
+                            //bEx->operandB = NULL;
+                            // bEx->operType = opType;
+
+                            //newVar->expression = bEx;
+
+                            //lowestBinaryOperand = newVar;
+                            //lowestOperatorRank = operatorRank;
+                            // bEx = lastBinaryExpression;
+
                         }
-
-                        operand->expression = bEx;
-                        bEx->operandB = NULL;
-                        bEx->operType = opType;
-                        // bEx->oper = op;
 
                         lastOperatorRank = operatorRank;
                         lastBinaryExpression = bEx;
