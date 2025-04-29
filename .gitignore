@@ -6,6 +6,8 @@ out/*
 src/.vscode/
 tmp/*
 
+./.vscode
+
 !doc/doc.html
 !doc/doc_tmp.html
 !doc/build.js
