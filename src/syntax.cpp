@@ -294,6 +294,20 @@ Variable::Variable(Variable* var) {
 
 }
 
+Function::Function() : SyntaxNode(NT_FUNCTION) {
+    this->errorSet = NULL;
+    this->errorSetName = NULL;
+    this->name = NULL;
+    this->nameLen = 0;
+    this->id = 0;
+    this->internalIdx = 0;
+    this->outArg = NULL;
+    this->scope = NULL;
+    this->bodyScope = NULL;
+    this->snFlags = 0;
+    this->parentIdx = 0;
+}
+
 Function::Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, VariableDefinition* outArg, int internalIdx) : SyntaxNode(NT_FUNCTION) {
     this->scope = sc;
     this->name = name;

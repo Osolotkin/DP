@@ -484,8 +484,10 @@ namespace Validator {
 
             if (!(var->expression)) continue;
             
-            err = evaluateDataTypes(var);
-            if (err < Err::OK) return err;
+            if (var->cvalue.dtypeEnum != DT_ARRAY) {
+                err = evaluateDataTypes(var);
+                if (err < Err::OK) return err;
+            }
 
             err = evaluate(var);
             if (err < Err::OK) return err;
@@ -504,147 +506,151 @@ namespace Validator {
             Array* arr = var->cvalue.arr;
 
             // arr->flags : info about length
-            // var should directly represent definiton
-            
-            if (var->expression) {
+            // var should directly represent definition
 
-                if (var->expression->type == EXT_FUNCTION_CALL) {
-                    // alloc
+            if (!(var->expression)) {
+                
+                const uint64_t flags = arr->flags;
 
-                    Variable* alloc = ((FunctionCall*) (var->expression))->inArgs[0];
-
-                    if (arr->flags & IS_CMP_TIME) {
-                        Logger::log(Logger::ERROR, "TODO error: invalid use of alloc!");
-                        return Err::CANNOT_EVALUATE_EXPRESION_AT_CMP_TIME;
-                    }
-
-                    if (!(arr->flags & IS_CONST)) {
-                        if (arr->length->cvalue.hasValue) {
-                            if (arr->length->cvalue.i64 != alloc->cvalue.arr->length->cvalue.i64) {
-                                Logger::log(Logger::ERROR, "TODO error: array and alloc size missmatch, you can omit array size while initializationg array with rvalue...");
-                                return Err::INVALID_LVALUE;
-                            }
-                        }
-                        arr->flags |= IS_ARRAY_LIST;
-                        var->def->flags |= IS_ARRAY_LIST;
-                    }
-
-                    if (alloc->cvalue.dtypeEnum != DT_ARRAY) {
-                        Logger::log(Logger::ERROR, "TODO error: validating arrays!");
-                        return Err::INVALID_DATA_TYPE;
-                    }
-
-                    // var->cvalue.arr->length = alloc->cvalue.arr->length;
-
-                    //var->cvalue.arr->length = len.cvalue.i64;
+                if (flags & IS_CONST || flags & IS_ARRAY_LIST || flags & IS_DYNAMIC) {
+                    if (flags & IS_ARRAY_LIST) var->def->flags |= IS_ARRAY_LIST;
                     arr->flags |= IS_ALLOCATED;
-
-                    // whatever
-
-                    Variable lenVar;
-                    const int err = evaluateArrayLength(alloc, &lenVar);
-                    if (err < 0) {
-                        Logger::log(Logger::ERROR, "!!! evaluateArrayLength failed with error: %i !!! ", var->loc, 0, err);
-                        return err;
-                    }
-
-                    alloc->cvalue.arr->length->cvalue.hasValue = lenVar.cvalue.hasValue;
-                    alloc->cvalue.arr->length->cvalue.i64 = lenVar.cvalue.i64;
-                    alloc->cvalue.arr->length->cvalue.dtypeEnum = DT_INT_64;
-                    alloc->cvalue.arr->length->expression = lenVar.expression;
-                    //var->cvalue.arr->pointsTo = NULL;
-
-                    var->cvalue.arr->length = alloc->cvalue.arr->length;
-
                     continue;
-
                 }
 
-                stripWrapperExpressions(var);
-
-                if (arr->length && (arr->length->cvalue.hasValue || arr->length->expression)) {
-                    stripWrapperExpressions(arr->length);
-                    const int dt = evaluateDataTypes(arr->length);
-                    if (dt > 0 && dt <= DT_UINT_64) {
-                        if (!(arr->length->cvalue.hasValue)) {
-                            const int err = evaluate(arr->length);
-                            if (err < 0) {
-                                Logger::log(Logger::ERROR, "TODO error: array length has to be known at compile time!", var->loc, 1);
-                                return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
-                            }
-                        }
-                        continue;
-                    } else {
-                        Logger::log(Logger::ERROR, "TODO error: array length has to be int!", var->loc, 1);
-                        return Err::INVALID_DATA_TYPE;
-                    }
+                if (!(arr->length) || !(arr->length->expression)) {
+                    Logger::log(Logger::ERROR, "Array declaration have to have length defineed either as compile-time expression or be a qualifier. Length cannot be empty without right side.", var->loc, var->nameLen);
+                    return Err::INVALID_ARRAY_LENGTH;
                 }
 
-                int len;
                 int err;
+                
+                err =  evaluateDataTypes(arr->length);
+                if (err < Err::OK) return err;
+    
+                err = evaluate(arr->length);
+                if (err < Err::OK) return err;
+                
+                continue;
+
+            }
+
+            if (var->expression->type == EXT_FUNCTION_CALL) {
+                // alloc
+
+                Variable* alloc = ((FunctionCall*) (var->expression))->inArgs[0];
+
+                if (arr->flags & IS_CMP_TIME) {
+                    Logger::log(Logger::ERROR, "TODO error: invalid use of alloc!", var->loc, var->nameLen);
+                    return Err::CANNOT_EVALUATE_EXPRESION_AT_CMP_TIME;
+                }
+
+                if (!(arr->flags & IS_CONST)) {
+                    if (arr->length && arr->length->cvalue.hasValue) {
+                        if (arr->length->cvalue.i64 != alloc->cvalue.arr->length->cvalue.i64) {
+                            Logger::log(Logger::ERROR, "TODO error: array and alloc size missmatch, you can omit array size while initializationg array with rvalue...");
+                            return Err::INVALID_LVALUE;
+                        }
+                    }
+                    arr->flags |= IS_ARRAY_LIST;
+                    var->def->flags |= IS_ARRAY_LIST;
+                }
+
+                if (alloc->cvalue.dtypeEnum != DT_ARRAY) {
+                    Logger::log(Logger::ERROR, "TODO error: validating arrays!");
+                    return Err::INVALID_DATA_TYPE;
+                }
+
+                // var->cvalue.arr->length = alloc->cvalue.arr->length;
+
+                //var->cvalue.arr->length = len.cvalue.i64;
+                arr->flags |= IS_ALLOCATED;
+
+                // whatever
+
                 Variable lenVar;
-
-                // stripWrapperExpressions(var);
-
-                err = evaluateArrayLength(var, &lenVar);
+                const int err = evaluateArrayLength(alloc, &lenVar);
                 if (err < 0) {
                     Logger::log(Logger::ERROR, "!!! evaluateArrayLength failed with error: %i !!! ", var->loc, 0, err);
                     return err;
                 }
 
-                //translatorC.printVariable(stdout, 0, &lenVar, NULL);
-                //printf("\n");
-
-                len = lenVar.cvalue.i64;
-
-                if (arr->length->cvalue.hasValue && arr->length->cvalue.i64 != len) {
-                    Logger::log(Logger::ERROR, "TODO error: array and alloc size mismatch, you can omit array size while initializing array with rvalue...");
-                    return Err::INVALID_LVALUE;
-                }
-
-                if (len == 0) {
-                    Logger::log(Logger::ERROR, "Array length cannot be zero!", var->loc, var->nameLen);
-                    return Err::INVALID_ARRAY_LENGTH;
-                }
-
-                var->cvalue.arr->length->cvalue.hasValue = 1;
-                var->cvalue.arr->length->cvalue.i64 = len;
-                var->cvalue.arr->length->cvalue.dtypeEnum = DT_INT_64;
+                alloc->cvalue.arr->length->cvalue.hasValue = lenVar.cvalue.hasValue;
+                alloc->cvalue.arr->length->cvalue.i64 = lenVar.cvalue.i64;
+                alloc->cvalue.arr->length->cvalue.dtypeEnum = DT_INT_64;
+                alloc->cvalue.arr->length->expression = lenVar.expression;
                 //var->cvalue.arr->pointsTo = NULL;
-                var->cvalue.hasValue = 1;
+
+                var->cvalue.arr->length = alloc->cvalue.arr->length;
 
                 continue;
 
             }
 
-            if (arr->flags & IS_CONST || arr->flags & IS_CMP_TIME) {
-                if (!(arr->length) || !(arr->length->expression)) {
-                    arr->flags |= IS_ALLOCATED;
+            stripWrapperExpressions(var);
+
+            if (arr->length && (arr->length->cvalue.hasValue || arr->length->expression)) {
+                stripWrapperExpressions(arr->length);
+                const int dt = evaluateDataTypes(arr->length);
+                if (dt > 0 && dt <= DT_UINT_64) {
+                    if (!(arr->length->cvalue.hasValue)) {
+                        const int err = evaluate(arr->length);
+                        if (err < 0) {
+                            Logger::log(Logger::ERROR, "TODO error: array length has to be known at compile time!", var->loc, 1);
+                            return Err::COMPILE_TIME_KNOWN_EXPRESSION_REQUIRED;
+                        }
+                    }
+                    continue;
+                } else {
+                    Logger::log(Logger::ERROR, "TODO error: array length has to be int!", var->loc, 1);
+                    return Err::INVALID_DATA_TYPE;
                 }
-                continue;
             }
 
-            if (!(arr->length) || !(arr->length->expression)) {
-                arr->flags |= IS_ARRAY_LIST | IS_ALLOCATED;
-                var->def->flags |= IS_ARRAY_LIST;
-                continue;
-            }
-
+            int len;
             int err;
-            
-            err =  evaluateDataTypes(arr->length);
-            if (err < Err::OK) return err;
+            Variable lenVar;
 
-            err = evaluate(arr->length);
-            if (err < Err::OK) return err;
+            // stripWrapperExpressions(var);
+
+            err = evaluateArrayLength(var, &lenVar);
+            if (err < 0) {
+                Logger::log(Logger::ERROR, "!!! evaluateArrayLength failed with error: %i !!! ", var->loc, 0, err);
+                return err;
+            }
+
+            //translatorC.printVariable(stdout, 0, &lenVar, NULL);
+            //printf("\n");
+
+            len = lenVar.cvalue.i64;
+
+            if (arr->length->cvalue.hasValue && arr->length->cvalue.i64 != len) {
+                Logger::log(Logger::ERROR, "TODO error: array and alloc size mismatch, you can omit array size while initializing array with rvalue...");
+                return Err::INVALID_LVALUE;
+            }
+
+            if (len == 0) {
+                Logger::log(Logger::ERROR, "Array length cannot be zero!", var->loc, var->nameLen);
+                return Err::INVALID_ARRAY_LENGTH;
+            }
+
+            var->cvalue.arr->length->cvalue.hasValue = 1;
+            var->cvalue.arr->length->cvalue.i64 = len;
+            var->cvalue.arr->length->cvalue.dtypeEnum = DT_INT_64;
+            //var->cvalue.arr->pointsTo = NULL;
+            var->cvalue.hasValue = 1;
 
         }
+
+
 
         // link function calls with definitions, verify arguments etc.
         for (int i = 0; i < (int) SyntaxNode::fcnCalls.size(); i++) {
             const int err = validateFunctionCall(SyntaxNode::fcnCalls[i]);
             if (err < 0) return err;
         }
+
+
 
         // validate return statements
         for (int i = 0; i < SyntaxNode::returnStatements.size(); i++) {
@@ -775,7 +781,7 @@ namespace Validator {
             if (varAss->rvar->snFlags & IS_ALLOCATION) {
                 if (dtypeL == DT_ARRAY) {
                     Array* arr = (Array*) dtypeLDef;
-                    if (!(arr->flags & IS_ARRAY_LIST)) {
+                    if (!(arr->flags & IS_ARRAY_LIST || arr->flags & IS_DYNAMIC)) {
                         Logger::log(Logger::ERROR, "Cannot realocate array of const length!", varAss->rvar->loc, 0);
                         return Err::CANNOT_ASSIGN_TO_CONST;
                     }
@@ -843,9 +849,15 @@ namespace Validator {
                 } else if (lvalueEx->type == EXT_BINARY) {
 
                     BinaryExpression* bex = (BinaryExpression*) lvalueEx;
-                    if (bex->operType == OP_SUBSCRIPT && bex->operandA->cvalue.arr->length->cvalue.dtypeEnum == DT_UNDEFINED) {
-                        copy(bex->operandA->cvalue.arr->length, &lenVar);
-                        bex->operandA->cvalue.arr->length->cvalue.dtypeEnum = DT_UNDEFINED;
+                    if (bex->operType == OP_SUBSCRIPT) {
+                        if (!(bex->operandA->cvalue.arr->length)) {
+                            bex->operandA->cvalue.arr->length = new Variable();
+                            copy(bex->operandA->cvalue.arr->length, &lenVar);
+                            bex->operandA->cvalue.arr->length->cvalue.dtypeEnum = DT_UNDEFINED;
+                        } else if (bex->operandA->cvalue.arr->length->cvalue.dtypeEnum == DT_UNDEFINED) {
+                            copy(bex->operandA->cvalue.arr->length, &lenVar);
+                            bex->operandA->cvalue.arr->length->cvalue.dtypeEnum = DT_UNDEFINED;
+                        }
                     }
 
                 }
@@ -2460,8 +2472,12 @@ namespace Validator {
                 if (dtype < Err::OK) return dtype;
 
                 //op->cvalue = wex->operand->cvalue;
-                op->cvalue.hasValue = wex->operand->cvalue.hasValue;
-                op->cvalue.any = wex->operand->cvalue.any;
+                if (wex->operand->cvalue.any) {
+                    // whatever quick patch, should never be a question
+                    // now its tied to a definition, has to be indicator
+                    op->cvalue.hasValue = wex->operand->cvalue.hasValue;
+                    op->cvalue.any = wex->operand->cvalue.any;
+                }
                 
                 rdtype = dtype;
                 break;

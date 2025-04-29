@@ -31,11 +31,11 @@ printPoint(ptD);
 ptD = { x: 4, y: 2 };
 printPoint(ptD);
 
-// use ..: to set remaining args to same value
+// use ..: to set remaining args to the same value
 PointEx ptE = { x: 4, ..: 1 };
 printPoint(ptE);
 
-ptE = {..: 0};
+ptE = { ..: 0 };
 printPoint(ptE);
 
 // default args

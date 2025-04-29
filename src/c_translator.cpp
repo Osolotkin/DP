@@ -816,7 +816,7 @@ int printVariableDefinitionLValue(FILE* file, int level, VariableDefinition* con
 
             fprintf(file, "%.*s_%i = arrayListCreate%s(", node->var->nameLen, node->var->name, node->var->id, tmp);
 
-            if (arr->length->cvalue.hasValue) {
+            if (arr->length && arr->length->cvalue.hasValue) {
                 printVariable(file, level, arr->length);
             }
 
@@ -827,6 +827,7 @@ int printVariableDefinitionLValue(FILE* file, int level, VariableDefinition* con
 
         } else if (arr->flags & IS_ALLOCATED) {
 
+            FILE* target = file;
             if (!isFcnDef) {
                 //c_printDataType(file, arr->length->cvalue.dtypeEnum);
                 //fputc(' ', file);
@@ -835,18 +836,29 @@ int printVariableDefinitionLValue(FILE* file, int level, VariableDefinition* con
                     //printVariable(vFile, level, arr->length, node->var);
                     printArrayLenName(vFile, node->var);
                     fputc(';', vFile);
+                    target = vFile;
                 } else {
                     fprintf(file, "uint64_t ");
                 }
                 
                 printArrayLenName(file, node->var);
                 fputc('=', file);
-                printVariable(file, 0, arr->length, node->var);
+
+                if (arr->length) {
+                    printVariable(file, 0, arr->length, node->var);
+                } else {
+                    fputc('0', file);
+                }
                 fputc(';', file);
             }
 
-            printDataType(file, arr->pointsToEnum);
-            fprintf(file, "* %.*s_%i", node->var->nameLen, node->var->name, node->var->id);
+            printDataType(target, arr->pointsToEnum);
+            fprintf(target, "* %.*s_%i", node->var->nameLen, node->var->name, node->var->id);
+            if (isGlobal) {
+                fputc(';', target);
+                printDataType(file, arr->pointsToEnum);
+                fprintf(file, "* %.*s_%i", node->var->nameLen, node->var->name, node->var->id);
+            }
 
         } else {
 
@@ -1476,6 +1488,10 @@ void printVariableAssignment(FILE* file, int level, VariableAssignment* const no
             FunctionCall* call = (FunctionCall*) node->rvar->expression;
             if (call->fcn->internalIdx == IF_ALLOC) {
 
+                printArrayLenName(file, node->lvar);
+                fputc('=', file);
+                printVariable(file, level, call->inArgs[0]->cvalue.arr->length, lvalue);
+                fputc(';', file);
                 //c_printArrayLenName(file, var);
 
                 printVariable(file, level, node->lvar);
@@ -2472,7 +2488,7 @@ void printErrorSet(FILE* file, int level, ErrorSet* const node, Variable* lvalue
     for (int i = 0; i < node->vars.size(); i++) {
         Variable* const var = node->vars[i];
         if (!(node->vars[i]->cvalue.hasValue)) continue;
-        fprintf(vFile, "const int %.*s_%i=%lu;", var->nameLen, var->name, var->id, var->cvalue.u64);
+        fprintf(vFile, "const int %.*s_%i=%lu;", var->nameLen, var->name, var->id, var->cvalue.u64 );
     }
 
 }

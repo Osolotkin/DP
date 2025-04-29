@@ -151,6 +151,8 @@ namespace Parser {
         {35, KWS_CATCH},
         {36, KWS_IMPORT},
         {37, KWS_SCOPE},
+        {37, KWS_AUTON},
+        {37, KWS_MUTON},
     };
 
     const int KEY_WORDS_COUNT = sizeof(keyWords) / sizeof(KeyWord);
@@ -167,7 +169,9 @@ namespace Parser {
 
 
     const KeyWord arrayKeyWords[] = {
-        {0, KWS_CONST},
+        {KW_CONST, KWS_CONST},
+        {KW_AUTON, KWS_AUTON},
+        {KW_MUTON, KWS_MUTON}
     };
 
     const int ARRAY_KEY_WORDS_COUNT = sizeof(arrayKeyWords) / sizeof(KeyWord);
@@ -537,7 +541,7 @@ namespace Parser {
 
                             fcn->scope = root;
                             fcn->parentIdx = 0;
-        
+
                             Utils::pushFornt<SyntaxNode*>(root->children, fcn);
                             Utils::pushFornt<Function*>(root->fcns, fcn); 
                             
@@ -582,6 +586,8 @@ namespace Parser {
                     fcn->outArg->var->cvalue.dtypeEnum = DT_VOID;
                     fcn->parentIdx = 0;
                     fcn->snFlags = 0;
+
+                    ASSIGN_ID(fcn);
 
                     // as we importing function, order doesn't matter, so we can push it back
                     root->children.push_back(fcn);
@@ -1913,9 +1919,10 @@ namespace Parser {
                 
                 if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
 
-                const int keyWordIdx = selectKeyWord(keyWords, KEY_WORDS_COUNT, str, &(loc->idx));
-                const int kword = (keyWordIdx < 0) ? -1 : keyWords[keyWordIdx].type;
-                if (kword == KW_CONST || kword == KW_CMP_TIME) {
+                const int keyWordIdx = selectKeyWord(arrayKeyWords, ARRAY_KEY_WORDS_COUNT, str, &(loc->idx));
+                if (keyWordIdx >= 0) {
+
+                    const int kword = (keyWordIdx < 0) ? -1 : arrayKeyWords[keyWordIdx].type;
 
                     if (Utils::skipWhiteSpacesAndComments(str, loc) < 0) return Err::UNEXPECTED_END_OF_FILE;
                     if (str[loc->idx] != ARRAY_END) {
@@ -1925,7 +1932,16 @@ namespace Parser {
 
                     loc->idx++;
 
-                    arr->flags = (kword == KW_CONST) ? IS_CONST : IS_CMP_TIME;
+                    if (kword == KW_CONST) {
+                        arr->flags = IS_CONST;
+                    } else if (kword == KW_AUTON) {
+                        arr->flags = IS_ARRAY_LIST;
+                    } else if (kword == KW_MUTON) {
+                        arr->flags = IS_DYNAMIC;
+                    } else {
+                        arr->flags = 0;
+                    }
+
                     arr->length = NULL; // var->allocSize = NULL;
                 
                 } else {
@@ -1933,7 +1949,7 @@ namespace Parser {
                     const int err = parseExpression(lenVar, str, loc, ARRAY_END, 0, 1);
                     if (err < 0 && err != Err::UNEXPECTED_END_OF_EXPRESSION) return err;
 
-                    arr->flags = 0;
+                    arr->flags = IS_CMP_TIME;
                     arr->length = lenVar; // var->allocSize = lenVar;
                 
                 }
@@ -2264,6 +2280,8 @@ namespace Parser {
                         Logger::log(Logger::ERROR, ERR_STR(Err::SYMBOL_ALREADY_DEFINED), def->var->loc, def->var->nameLen);
                         return Err::SYMBOL_ALREADY_DEFINED;
                     }
+
+                    setParentIdx(def->var);
 
                     scope->children.push_back(def);
                     SyntaxNode::variableDefinitions.push_back(def);

@@ -89,13 +89,13 @@ darr[1] = 2;
 "len(darr): %i\n" printArrayLength(darr);
 
 // it can be then deallocated
-free(darr);
+free darr;
 "free darr";
 "darr: [%i, %i]\n" darr[0], darr[1];
 
 
-// if no size is specified, array list is created
-int[] arrList;
+// array list
+int[auton] arrList;
 arrList[0] = 1;
 arrList[1] = 2;
 
