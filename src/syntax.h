@@ -200,6 +200,8 @@ enum KeyWordType : int {
     KW_CATCH,
     KW_IMPORT,
     KW_SCOPE,
+    KW_AUTON,
+    KW_MUTON,
 };
 
 enum TypedefKeyWord {
@@ -954,7 +956,7 @@ struct Function : SyntaxNode, FunctionPrototype, INamedEx {
     int codeLen;
     */
 
-    Function() : SyntaxNode(NT_FUNCTION) {};
+    Function();
     Function(Scope* sc, char* name, int nameLen, std::vector<VariableDefinition*> inArgs, VariableDefinition* outArg, int internalIdx);
 
 };

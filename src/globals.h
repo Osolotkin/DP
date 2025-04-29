@@ -59,6 +59,8 @@ const char KWS_POINTER[]    = "^";
 
 const char KWS_CONST[]      = "const";
 const char KWS_CMP_TIME[]   = "embed";
+const char KWS_AUTON[]      = "auton";
+const char KWS_MUTON[]      = "muton";
 const char KWS_FUNCTION[]   = "fcn";
 const char KWS_ENUM[]       = "enum";
 const char KWS_TYPE_DEF[]   = "def";
@@ -107,13 +109,15 @@ const char IS_FILL = '@';
 
 // TODO : better name
 enum State : uint64_t {
+    
     IS_CONST = 1 << 0,
     IS_CMP_TIME = 1 << 1,
-    IS_EMBEDED = 1 << 2,
+    IS_DYNAMIC = 1 << 2,
+    IS_EMBEDED = 1 << 3, // LOOK AT: wtf is this
 
-    IS_UNARY = 1 << 3,
-    IS_BINARY = 1 << 4,
-    IS_TERNARY = 1 << 5,
+    IS_UNARY = 1 << 4,
+    IS_BINARY = 1 << 5,
+    IS_TERNARY = 1 << 6,
 
     IS_ONE_CHAR = 1 << 7,
     IS_TWO_CHAR = 1 << 8,

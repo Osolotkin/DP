@@ -34,7 +34,7 @@ arrC5[0:] = arrA[1:] .. arrB[2:4];
 print(arrC5);
 
 // array-list appending
-u8[] arrC6;
+u8[auton] arrC6;
 arrC6[] = arrA[1:] .. arrB[2:4];
 
 print(arrC6);
