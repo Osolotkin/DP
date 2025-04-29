@@ -6,7 +6,7 @@ out/*
 src/.vscode/
 tmp/*
 
-./.vscode
+.vscode/
 
 !doc/doc.html
 !doc/doc_tmp.html
