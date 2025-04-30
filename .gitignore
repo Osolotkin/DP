@@ -28,3 +28,5 @@ tmp/*
 !test/Loops
 !test/Namespaces
 !test/Tetris
+
+!build/compiler.bat
