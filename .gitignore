@@ -1,4 +1,4 @@
-build/
+build/*
 doc/*
 thesis/*
 test/*
@@ -30,3 +30,4 @@ tmp/*
 !test/Tetris
 
 !build/compiler.bat
+!build/libtcc.dll
