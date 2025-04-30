@@ -1,54 +1,114 @@
 # Whatever-named-language
 
-## How to build
-using `cl` (Visual Studio)
-    run either `build.bat` or `build_debug.bat`
-    note, use developer powershell to have cl available
+## Table of Contents
+- [Whatever-named-language](#whatever-named-language)
+  - [Table of Contents](#table-of-contents)
+  - [How to Build](#how-to-build)
+    - [Using `cl` (Visual Studio)](#using-cl-visual-studio)
+    - [Using `g++` (Windows)](#using-g-windows)
+    - [On Linux with `g++` (Experimental)](#on-linux-with-g-experimental)
+  - [Usage](#usage)
+    - [To compile and run](#to-compile-and-run)
+    - [To compile only](#to-compile-only)
+    - [To translate to C code only](#to-translate-to-c-code-only)
+    - [Command-line options](#command-line-options)
+  - [Documentation](#documentation)
+  - [Language Support](#language-support)
+  - [Dependencies](#dependencies)
+    - [Runtime Dependencies](#runtime-dependencies)
+    - [Build Dependencies](#build-dependencies)
+  - [Note](#note)
 
-using `g++`
-    run either `build_gcc.bat` or `build_gcc_debug.bat`
-    note, not that much tested
+## How to Build
 
-linux `g++` (for now experimental)
-    run `build_gcc_linux.sh`, but note, may be some tweaks 
-    will be needed to make tcc run-time work... maybe even
-    changes in code (main.cpp)
-    
-builded file should be located in `./build`
+> The compiled output will be placed in the `./build` directory.
+
+### Using `cl` (Visual Studio)
+- Run either `build.bat` or `build_debug.bat`.
+- **Note:** Use *Developer PowerShell* to ensure `cl` is available.
+
+### Using `g++` (Windows)
+- Run either `build_gcc.bat` or `build_gcc_debug.bat`.
+- **Note:** This setup hasn't been extensively tested.
+
+### On Linux with `g++` (Experimental)
+- Run `build_gcc_linux.sh`.
+- **Note:** Some tweaks may be required to get the TCC runtime working. You might also need to modify `main.cpp`.
 
 ## Usage
-Lets say our compiler exe is compiler.exe and its available.
-Lets say our main file is main.vi.
 
-To compile and run use
-```
+Assume:
+- Your compiler executable is `compiler.exe`.
+- Your source file is `main.vi`.
+
+> In all cases, an `./out` directory will be created. It will contain the generated C files and, if applicable, the executable.
+
+> For best output rendering, use a terminal that supports UTF-8 and ANSI escape codes — such as **Windows Terminal**.  
+> **Note:** PowerShell and the default Command Prompt use code page 437 by default, which may affect some characters. You can switch to UTF-8 (code page 65001) by adding `-Command chcp 65001` in your Windows Terminal settings. This step is optional but improves compatibility.
+
+### To compile and run
+```bash
 compiler.exe run main.vi
 ```
-To just compile use
-```
+On Windows, you may want to run `compiler.bat` from the `./build` folder to execute the compiled program in the same terminal.
+
+> **Note:** `compiler.bat` expects the executable to be named exactly `compiler.exe` or `compiler_gcc.exe` and located in the same folder.
+
+### To compile only
+```bash
 compiler.exe build main.vi
 ```
-To generate just C code use
-```
+
+### To translate to C code only
+```bash
 compiler.exe translate main.vi
 ```
+> **Note:** The C files are **not directly compilable** — you'll need to include headers from the `./resources` directory.
 
-In all cases `./out` folder will be generated. 
-There will be located generated C files and exe file if builded.
-Note, these files are note compilable as it is, one have to include headers from `./resources`.
+### Command-line options
+All options work with `run`, `build`, and `translate` commands:
 
-There is list of all command line options that can be used with any of run, build and translate commands:
+- `-ol` (Output Language)  
+- `-of` (Output File)  
+- `-od` (Output Directory)  
+- `-gd` (Generate Debug Information)  
+- `-h` (Help)  
+- `-b` (Batch/Bash Mode)  
+
+For example, to list available options for the `build` command:
+```bash
+compiler.exe build -h
+```
 
 ## Documentation
-Documentation is located in `./doc/doc.html`
 
-## Language support
-Some useful plugins for VS-Code and Nvim are located in `./tools/`
+The compiled HTML documentation can be found in `./doc/doc.html`.
+
+## Language Support
+
+Editor plugins:
+- VS Code and Neovim plugins can be found in `./tools/`
 
 ## Dependencies
-Internally uses tcc (Tiny C Compiler):
-    - Runtime dependencies are:
-        `./tcc`, have to be accessed as `../tcc` from whatever compiler location.
-        `libtcc.dll` located in `./build`
-    - Build dependencies
-        `./lib` folder with bunch of tcc related files, not all may be needed for specific compilation.
+
+This project internally uses **TCC (Tiny C Compiler)**.
+
+### Runtime Dependencies
+- `./tcc` folder (accessed as `../tcc` relative to the compiler executable)
+- `libtcc.dll` located in `./build`
+
+### Build Dependencies
+- `./lib` folder with TCC-related files  
+  - Not all files may be needed for every build
+
+## Note
+
+This application is still in early development. The source code may be inconsistent or messy in places, with known issues left as-is to avoid premature complexity. These will be addressed during a planned refactor.
+
+Some error messages remain incomplete, as the error-reporting system will later support more detailed location tracking across contexts.
+
+Certain features — like array lists with user-defined types — haven’t been implemented yet. Rather than rush them, they will be built later using better infrastructure (e.g., metaprogramming). Similarly, some features like explicit type casting are omitted for now.
+
+Others, such as increment operators, were temporarily added to test verbosity handling — but will eventually be disallowed in expressions.
+
+Experimental features and redundant logic may exist in the codebase as part of ongoing design exploration.
