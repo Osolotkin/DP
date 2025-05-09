@@ -25,13 +25,11 @@
             --scrollbar-width: 10px;
         }
 
-        /* Apply to all scrollable elements */
         * {
             scrollbar-width: thin;
             scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
         }
 
-        /* WebKit-based browsers (Chrome, Safari, Edge) */
         *::-webkit-scrollbar {
             width: var(--scrollbar-width);
             height: var(--scrollbar-width);
@@ -114,7 +112,7 @@
         }
 
         a {
-            color: var(--title);
+            color: var(--subtle-foreground);
             text-decoration: none;
             transition: all 50ms ease-in-out;
         }
@@ -137,22 +135,23 @@
         }
 
         .active-just-color {
-            color: var(--subtle-foreground);
+            color: var(--title);
         }
 
         .toc {
             width: 250px;
             background: var(--background);
             border-left: 1px solid var(--subtle-foreground);
+            color: var(--title);
             padding: 10px;
             min-width: calc(13em + 6px);
             font-size: 0.9em;
             position: sticky;
-            top: 0; /* Stick to the top of the content-wrapper */
+            top: 0;
             right: 0;
-            align-self: stretch; /* Align to the top of the flex container */
-            max-height: calc(100vh - 20px); /* Prevent overflow on short screens */
-            overflow-y: auto; /* Scrollable if ToC is long */
+            align-self: stretch;
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
         }
         
         .toc h3 {
@@ -176,12 +175,7 @@
             }
 
             .toc {
-                position: static;
-                width: 100%;
-                max-width: 100%;
-                margin-bottom: 2em;
-                max-height: none;
-                overflow-y: visible;
+                display: none;
             }
         }
 
