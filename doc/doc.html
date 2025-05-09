@@ -19,6 +19,31 @@
             --tmp-color-1: #7aa5d4;
             --tmp-color-2: #d9a86a;
             --tmp-color-3: #8fbc8f;
+            
+            --scrollbar-thumb-color: var(--title);
+            --scrollbar-track-color: var(--background);
+            --scrollbar-width: 10px;
+        }
+
+        /* Apply to all scrollable elements */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+        }
+
+        /* WebKit-based browsers (Chrome, Safari, Edge) */
+        *::-webkit-scrollbar {
+            width: var(--scrollbar-width);
+            height: var(--scrollbar-width);
+        }
+
+        *::-webkit-scrollbar-track {
+            background: var(--scrollbar-track-color);
+        }
+
+        *::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thumb-color);
+            border-radius: 6px;
         }
 
         body {
@@ -29,6 +54,14 @@
             padding: 0;
             line-height: 1.6;
             font-weight: 300;
+        }
+
+        super-main {
+            display: flex;
+            max-width: 60em;
+            margin: 0 auto;
+            padding: 2em 1em;
+            gap: 2em;
         }
 
         main {
@@ -83,23 +116,89 @@
         a {
             color: var(--title);
             text-decoration: none;
+            transition: all 50ms ease-in-out;
         }
+        
         a:hover {
             text-decoration: underline;
+        }
+        
+        .active {
+            border-left: solid 2px;
+            border-color: var(--tmp-color-2);
+            padding-left: 4px;
+            color: var(--tmp-color-1);
+        }
+        
+        .active-but-color {
+            border-left: solid 2px;
+            border-color: var(--tmp-color-3);
+            padding-left: 4px;
+        }
+
+        .active-just-color {
+            color: var(--subtle-foreground);
+        }
+
+        .toc {
+            width: 250px;
+            background: var(--background);
+            border-left: 1px solid var(--subtle-foreground);
+            padding: 10px;
+            min-width: calc(13em + 6px);
+            font-size: 0.9em;
+            position: sticky;
+            top: 0; /* Stick to the top of the content-wrapper */
+            right: 0;
+            align-self: stretch; /* Align to the top of the flex container */
+            max-height: calc(100vh - 20px); /* Prevent overflow on short screens */
+            overflow-y: auto; /* Scrollable if ToC is long */
+        }
+        
+        .toc h3 {
+            margin-top: 0;
+            font-size: 1.2em;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 10px;
+            padding-bottom: 5px;
+        }
+
+        .toc li {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 768px) {
+            super-main {
+            flex-direction: column;
+            }
+
+            .toc {
+                position: static;
+                width: 100%;
+                max-width: 100%;
+                margin-bottom: 2em;
+                max-height: none;
+                overflow-y: visible;
+            }
         }
 
     </style>
 
 </head>
 <body>
+    <super-main>
     <main>
         <h1>Language Documentation</h1> 
 
-        <section>
+        <section id="introduction">
             <h2>Introduction</h2>
             <p>This document introduces the basic syntax and semantics of the language. It primarily focuses on how to use the language, rather than the design rationale behind its features.</p>
+        </section>
             
-        <section>
+        <section id="hello_world">
             <h2>Hello, World!</h2>
             <p>The language does not require an explicit <code>main</code> function. The program's execution begins at the start of the source file provided to the compiler.</p>
             <p>A simple "Hello, world!" program can be written using a string literal, which implicitly prints its content when used as a statement:</p>
@@ -107,20 +206,22 @@
             <p>String literals can also act like basic format strings when followed by arguments, similar to <code>printf</code> in C:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#F0CA93">"Hello, %s!"</span><span style="color:#F0CA93"> "world"</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Prints "Hello, world!"</span></span></code></pre>
             
-            <h3>Compiling and Running</h3>
-            <p>Compile a source file (e.g., `hello.txt`) into an executable (`app.exe`):</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">compiler</span><span style="color:#DA9188"> build</span><span style="color:#D0CDC8"> hello</span><span style="color:#A68295">.</span><span style="color:#DA9188">txt</span><span style="color:#D0CDC8"> app</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">exe</span></span></code></pre>
-            <p>Compile and run immediately:</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">compiler</span><span style="color:#DA9188"> run</span><span style="color:#D0CDC8"> hello</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">txt</span></span></code></pre>
-            <p>Translate the source file only to the intermediate C code:</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">compiler</span><span style="color:#DA9188"> translate</span><span style="color:#D0CDC8"> hello</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">txt</span></span></code></pre>
+            <section id="compiling">
+                <h3>Compiling and Running</h3>
+                <p>Compile a source file (e.g., `hello.txt`) into an executable (`app.exe`):</p>
+                <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">compiler</span><span style="color:#DA9188"> build</span><span style="color:#D0CDC8"> hello</span><span style="color:#A68295">.</span><span style="color:#DA9188">txt</span><span style="color:#D0CDC8"> app</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">exe</span></span></code></pre>
+                <p>Compile and run immediately:</p>
+                <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">compiler</span><span style="color:#DA9188"> run</span><span style="color:#D0CDC8"> hello</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">txt</span></span></code></pre>
+                <p>Translate the source file only to the intermediate C code:</p>
+                <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">compiler</span><span style="color:#DA9188"> translate</span><span style="color:#D0CDC8"> hello</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">txt</span></span></code></pre>
+            </section>
         </section>
         
-        <section>
+        <section id="char_set">
             <h2>Character Set</h2>
             <p>Source files are expected to be encoded in UTF-8. This allows the direct use of Unicode characters within the code, including string and character literals.</p> </section>
 
-        <section>
+        <section id="comments">
             <h2>Comments</h2>
             <p>Comments are ignored by the compiler. Two forms are available:</p>
             <p>Single-line comments start with <code>//</code>:</p>
@@ -132,16 +233,15 @@
 <span class="line"><span style="color:#54524F;font-style:italic">/}</span></span></code></pre>
         </section>
 
-        <section>
+        <section =="" id="keywords">
             <h2>Keywords</h2>
             <p>The following keywords are reserved and cannot be used as identifiers:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#AD687D">alloc</span><span style="color:#A68295">,</span><span style="color:#AD687D"> as</span><span style="color:#A68295">,</span><span style="color:#AD687D"> catch</span><span style="color:#A68295">,</span><span style="color:#AD687D"> const</span><span style="color:#A68295">,</span><span style="color:#D0CDC8"> def</span><span style="color:#A68295">,</span><span style="color:#AD687D"> embed</span><span style="color:#A68295">,</span><span style="color:#D0CDC8"> error</span><span style="color:#A68295">,</span><span style="color:#D0CDC8"> fcn</span><span style="color:#A68295">,</span><span style="color:#AD687D"> for</span><span style="color:#A68295">,</span><span style="color:#AD687D"> free</span><span style="color:#A68295">,</span><span style="color:#AD687D"> from</span><span style="color:#A68295">,</span><span style="color:#AD687D"> import</span><span style="color:#A68295">,</span><span style="color:#AD687D"> local</span><span style="color:#A68295">,</span><span style="color:#AD687D"> loop</span><span style="color:#A68295">,</span><span style="color:#D0CDC8"> namespace</span><span style="color:#A68295">,</span><span style="color:#AD687D"> return</span><span style="color:#A68295">,</span><span style="color:#AD687D"> using</span><span style="color:#A68295">,</span><span style="color:#AD687D"> while</span><span style="color:#A68295">,</span><span style="color:#DA9188"> int</span><span style="color:#A68295">,</span><span style="color:#DA9188"> i8</span><span style="color:#A68295">,</span><span style="color:#DA9188"> u8</span><span style="color:#A68295">,</span><span style="color:#DA9188"> i16</span><span style="color:#A68295">,</span><span style="color:#DA9188"> u16</span><span style="color:#A68295">,</span><span style="color:#DA9188"> i32</span><span style="color:#A68295">,</span><span style="color:#DA9188"> u32</span><span style="color:#A68295">,</span><span style="color:#DA9188"> i64</span><span style="color:#A68295">,</span><span style="color:#DA9188"> u64</span><span style="color:#A68295">,</span><span style="color:#DA9188"> f32</span><span style="color:#A68295">,</span><span style="color:#DA9188"> f64</span></span></code></pre> 
             <p class="note">Other identifiers like type names (<code>i32</code>, <code>u8</code> etc.) and the literal <code>null</code> are predefined but not strictly reserved keywords.</p>
         </section>
 
-        <section>
-            <h2>Data Types</h2>
-            <h3>Built-in Primitive Types</h3>
+        <section =="" id="data_types">
+            <h2>Built-in Primitive Types</h2>
             <p>The language provides standard primitive numeric types:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Signed Integers: i8, i16, i32, i64</span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Unsigned Integers: u8, u16, u32, u64</span></span>
@@ -154,52 +254,59 @@
             <p>Composite types include pointers (<code>^</code>), arrays (<code>[]</code>), structs (<code>def struct</code>), and unions (<code>def union</code>), described below.</p>
         </section>
 
-        <section>
+        <section id="literals">
             <h2>Literals</h2>
             <p>Literals represent fixed values directly in the source code.</p>
             
+            <section id="int_literals">
             <h3>Integer Literals</h3>
             <p>Integers can be written in decimal, hexadecimal (prefix <code>0x</code>), or binary (prefix <code>0b</code>). Underscores (<code>_</code>) can be used as visual separators.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#D0CDC8"> decimal_val </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 1_000</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#DA9188">u32</span><span style="color:#D0CDC8"> hex_val     </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 0xFF_00</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#DA9188">u8</span><span style="color:#D0CDC8"> binary_val  </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 0b1010_0101</span><span style="color:#A68295">;</span></span></code></pre>
             
+            
+            <section id="float_literals">
             <h3>Floating-Point Literals</h3>
             <p>Floating-point literals include a decimal point. A suffix <code>f</code> denotes an <code>f32</code> literal; otherwise, the default is <code>f64</code>.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">f64</span><span style="color:#D0CDC8"> pi </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 3.14159</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#DA9188">f32</span><span style="color:#D0CDC8"> speed_of_light </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 299_792_458f</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"><span style="color:#DA9188">f64</span><span style="color:#D0CDC8"> default_float </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 1.0</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // 1 would also be cast implicitly</span></span></code></pre> 
-            
+            </section>
+
+            <section id="char_literals">
             <h3>Character Literals</h3>
-            <p>Character literals represent a single Unicode code point (which may consist of multiple bytes in UTF-8 encoding) or map directly to small integer values. They are enclosed in single quotes (<code>'</code>).</p>
-            <p>The type of the resulting integer value depends on the character itself and the context (e.g., the type of the variable it is assigned to). Standard ASCII characters, common escape sequences (<code>\n</code>, <code>\t</code>, etc.), and hexadecimal escapes (<code>\xNN</code>) are supported and typically fit within an 8-bit type:</p>
+            <p>Character literals represent a single Unicode code point (which may consist of multiple bytes in UTF-8 encoding) and map directly to integer values. They are enclosed in single quotes (<code>'</code>).</p>
+            <p>The type of the resulting integer value depends on the character's width, and the cast follows the same rules. Standard ASCII characters, common escape sequences (<code>\n</code>, <code>\t</code>, etc.), and hexadecimal escapes (<code>\xNN</code>) are supported and typically fit within an 8-bit type:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u8</span><span style="color:#D0CDC8"> char_a </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'a'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">     // Represents the UTF-8/ASCII value of 'a' (0x61)</span></span>
 <span class="line"><span style="color:#DA9188">u8</span><span style="color:#D0CDC8"> newline </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> '</span><span style="color:#DA9188">\n</span><span style="color:#F0CA93">'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">   // Represents the newline character (e.g., 0x0A)</span></span>
 <span class="line"><span style="color:#DA9188">u8</span><span style="color:#D0CDC8"> hex_char </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> '</span><span style="color:#DA9188">\x41</span><span style="color:#F0CA93">'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Represents the byte value 65 (hex 41, ASCII 'A')</span></span></code></pre>
-            <p>Literals representing Unicode code points that require more than one byte in UTF-8 encoding can also be used, typically requiring a wider integer type to hold the code point's value:</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u16</span><span style="color:#D0CDC8"> char_cz </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'č'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">  // Represents the Unicode code point for 'č' (e.g., 0x010D)</span></span>
-<span class="line"><span style="color:#DA9188">u32</span><span style="color:#D0CDC8"> char_jp </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'は'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Represents the Unicode code point for 'は' (e.g., 0x306F)</span></span></code></pre>
+            <p>Literals representing Unicode code points that require more than one byte in UTF-8 encoding can also be used, requiring a wider integer type to hold the code point's value:</p>
+            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u16</span><span style="color:#D0CDC8"> char_cz </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'č'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">  // Represents the Unicode code point for 'č' (e.g., 0xC48D)</span></span>
+<span class="line"><span style="color:#DA9188">u32</span><span style="color:#D0CDC8"> char_jp </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'は'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Represents the Unicode code point for 'は' (e.g., 0xE381AF)</span></span></code></pre>
             <p>Multi-character literals are permitted and produce an integer value. The character bytes are packed into the integer value, with the first character's byte(s) placed in the higher-order (most significant) positions. This follows a fixed big-endian interpretation. If the character sequence uses fewer bytes than the target integer type, it is padded with leading zero bytes.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u32</span><span style="color:#D0CDC8"> multi_ascii </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'abcd'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // 0x61626364 (bytes of 'a', 'b', 'c', 'd')</span></span>
 <span class="line"><span style="color:#DA9188">u32</span><span style="color:#D0CDC8"> multi_ascii_padded </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'abc'</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // 0x00616263</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Example with UTF-8 (bytes C4 8D for 'č', 20 for space):</span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// Forms the integer 0xC48D2000 (assuming padding to 32 bits)</span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// Practical use cases for multi-byte characters in multi-character literals might be specific.</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">// Forms the integer 0x00C48D20 (assuming padding to 32 bits)</span></span>
 <span class="line"><span style="color:#DA9188">u32</span><span style="color:#D0CDC8"> multi_utf8 </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> 'č '</span><span style="color:#A68295">;</span></span></code></pre> 
             <p class="note">Character literals (<code>'...'</code>) produce scalar integer values. For representing sequences of characters as arrays, use string literals (<code>"..."</code>).</p>
+            </section>
 
-            <h3>String Literals</h3>
+            <section id="string_literals">
+            <h3 id="string_literals">String Literals</h3>
             <p>String literals represent sequences of characters encoded in UTF-8 and are enclosed in double quotes (<code>"..."</code>). They generally result in arrays.</p>
             <p>By default, a string literal is converted to an array of an integer type (<code>u8</code>, <code>u16</code>, or <code>u32</code>) capable of holding the widest single Unicode code point found within the literal. Each element of the resulting array holds one code point.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u8</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> ascii_str </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> "Hello"</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">  // Becomes u8 array, each element holds one ASCII char</span></span>
-<span class="line"><span style="color:#DA9188">u16</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> utf8_str </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> "čau"</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">   // 'č' requires u16/u32, so becomes u16 array (or u32 if needed)</span></span></code></pre>
+<span class="line"><span style="color:#DA9188">u16</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> utf8_str </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> "čau"</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">   // 'č' requires at least u16, so becomes u16 array</span></span></code></pre>
             <p class="note">If assigning to an array type with insufficient element size (e.g., assigning `"čau"` to <code>u8[]</code>), a compile error occurs. If assigning to a wider type than necessary (e.g., `"abc"` to <code>u16[]</code>), a warning may be issued.</p>
             <p>To obtain the raw UTF-8 byte sequence of a string literal as a <code>u8</code> array, use the <code>b</code> suffix:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u8</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> raw_bytes </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> "čau"</span><span style="color:#D0CDC8">b</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Represents the bytes: C4 8D 61 75</span></span></code></pre> 
+            </section>
         </section>
 
-        <section>
+        <section id="operators">
             <h2>Operators</h2>
             <p>Common operators are supported (precedence generally follows C conventions):</p> 
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Arithmetic:  + - * / %</span></span>
@@ -208,11 +315,10 @@
 <span class="line"><span style="color:#54524F;font-style:italic">// Comparison:  == != &lt; &gt; &lt;= &gt;=</span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Member/Scope: . ::</span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Pointer:     ^ (type/deref), &amp; (address-of)</span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// Assignment:  =</span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// Other:       : (init/slice), .. (concat/range), , (separator)</span></span></code></pre>
+<span class="line"><span style="color:#54524F;font-style:italic">// String:      .. (concat)</span></span></code></pre>
         </section>
 
-        <section>
+        <section id="qualifiers">
             <h2>Qualifiers</h2>
             <p><code>embed</code> and <code>const</code> modify declarations:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#AD687D">embed</span><span style="color:#DA9188"> i32</span><span style="color:#D0CDC8"> COMPILE_TIME_VAL </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 10</span><span style="color:#AD687D"> *</span><span style="color:#A68295"> (</span><span style="color:#5276B5">1</span><span style="color:#AD687D"> +</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">);</span><span style="color:#54524F;font-style:italic"> // Have to be computable by compiler</span></span>
@@ -223,7 +329,7 @@
             </ul>      
         </section>
 
-        <section>
+        <section id="pointers">
             <h2>Pointers</h2>
             <p>Pointers (<code>^</code>) store memory addresses. <code>^</code> is used for type declaration and dereferencing. <code>&amp;</code> takes the address.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#D0CDC8"> value </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 42</span><span style="color:#A68295">;</span></span>
@@ -237,7 +343,7 @@
 <span class="line"><span style="color:#DA9188">i32</span><span style="color:#D0CDC8"> result </span><span style="color:#AD687D">=</span><span style="color:#E2ADBC"> p_add</span><span style="color:#A68295">(</span><span style="color:#5276B5">5</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 3</span><span style="color:#A68295">);</span><span style="color:#54524F;font-style:italic">          // Call function via pointer (result is 8)</span></span></code></pre>
         </section>
 
-        <section>
+        <section id="allocations">
             <h2>Memory Allocation</h2>
             <p>Use <code>alloc</code> to allocate memory dynamically on the heap, returning a pointer. Use <code>free</code> to deallocate.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Allocate space for one int</span></span>
@@ -258,21 +364,21 @@
 <span class="line"><span style="color:#54524F;font-style:italic">// ... free other pointers when done</span></span></code></pre>
             <p class="note"><code>alloc</code> must appear on the right side of an assignment.</p> <p class="note">The initializer after <code>:</code> must be compatible with the allocated type.</p> </section>
 
-        <section>
+        <section id="arrays">
             <h2>Arrays</h2>
             <p>Arrays represent a contiguous sequence of elements of the same type. Operations on array variables often apply element-wise (value semantics).</p> <p>Declaration and initialization:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Static array of 4 integers (size known at compile time)</span></span>
 <span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[</span><span style="color:#5276B5">4</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> static_arr</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Initialized static array (length inferred)</span></span>
-<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> static_init </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295"> };</span><span style="color:#D0CDC8"> </span></span>
+<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> static_init </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295"> ];</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Initialize all elements to zero</span></span>
 <span class="line"><span style="color:#DA9188">f32</span><span style="color:#A68295">[</span><span style="color:#5276B5">10</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> zeros </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 0.0</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Qualifiers apply to elements</span></span>
-<span class="line"><span style="color:#AD687D">const</span><span style="color:#DA9188"> i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> read_only_arr </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 2</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 3</span><span style="color:#A68295"> };</span></span>
-<span class="line"><span style="color:#AD687D">embed</span><span style="color:#DA9188"> i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> compile_time_arr </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 2</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 3</span><span style="color:#A68295"> };</span></span></code></pre>
+<span class="line"><span style="color:#AD687D">const</span><span style="color:#DA9188"> i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> read_only_arr </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 2</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 3</span><span style="color:#A68295"> ];</span></span>
+<span class="line"><span style="color:#AD687D">embed</span><span style="color:#DA9188"> i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> compile_time_arr </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 2</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 3</span><span style="color:#A68295"> ];</span></span></code></pre>
             <p class="note">Declaring an array without an initializer (like <code>static_arr</code> above) leaves its element values undefined.</p>
             
             <p>Access elements by zero-based index:</p>
@@ -280,44 +386,45 @@
 
             <p>Get the number of elements using <code>.length</code>:</p> <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u64</span><span style="color:#D0CDC8"> count </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> static_init</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">length</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // 3</span></span></code></pre>
             <p class="note">When an array is passed to a function, its length is typically passed implicitly alongside the data pointer.</p> <p>Get the total size in bytes using <code>.size</code>:</p> <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">u64</span><span style="color:#D0CDC8"> bytes </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> static_init</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">size</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // sizeof(i32) * 3</span></span></code></pre>
-            <p class="note"><code>.size</code> is generally calculated as <code>element_type_size * array.length</code>. For array lists, <code>.capacity</code> gives the allocated size.</p> <p>Four main array types exist:</p>
+            <p class="note"><code>.size</code> is generally calculated as <code>element_type_size * array.length</code>
+            </p><p>Four main array types exist:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// 1. Static: Compile-time fixed size, usually stack/static allocation</span></span>
 <span class="line"><span style="color:#DA9188">Type[</span><span style="color:#D0CDC8">N</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> static_array</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// 2. Const-Dynamic: Runtime fixed size, heap allocated, length constant after alloc</span></span>
 <span class="line"><span style="color:#DA9188">Type[</span><span style="color:#AD687D">const</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> const_dyn_array </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> alloc</span><span style="color:#DA9188"> Type[</span><span style="color:#D0CDC8">runtime_size</span><span style="color:#A68295">];</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// 3. Dynamic: Runtime variable size (manual reallocation needed), heap allocated</span></span>
-<span class="line"><span style="color:#DA9188">Type[</span><span style="color:#D0CDC8">dynamic</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> dyn_array </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> alloc</span><span style="color:#DA9188"> Type[</span><span style="color:#D0CDC8">runtime_size</span><span style="color:#A68295">];</span><span style="color:#D0CDC8"> </span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">// 3. Dynamic (manually managed): Runtime variable size, heap allocated</span></span>
+<span class="line"><span style="color:#DA9188">Type[</span><span style="color:#D0CDC8">muton</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> dyn_array </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> alloc</span><span style="color:#DA9188"> Type[</span><span style="color:#D0CDC8">runtime_size</span><span style="color:#A68295">];</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// dyn_array might be reassigned to result of another alloc</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// 4. Array List (Autonomous): Auto-resizing on write, heap allocated</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">// 4. Array List (autonomous): Auto-resizing on write, heap allocated</span></span>
 <span class="line"><span style="color:#DA9188">Type[</span><span style="color:#D0CDC8">auton</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> list </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> alloc</span><span style="color:#DA9188"> Type[</span><span style="color:#D0CDC8">initial_capacity</span><span style="color:#A68295">];</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"><span style="color:#DA9188">list[</span><span style="color:#D0CDC8">large_index</span><span style="color:#A68295">]</span><span style="color:#AD687D"> =</span><span style="color:#D0CDC8"> value</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // May reallocate and grow</span></span>
-<span class="line"><span style="color:#DA9188">u64</span><span style="color:#D0CDC8"> cap </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> list</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">capacity</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">   // Get allocated capacity</span></span></code></pre>
+<span class="line"><span style="color:#DA9188">u64</span><span style="color:#D0CDC8"> cap </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> list</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">size</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">   // Get allocated capacity</span></span></code></pre>
 
             <p>Concatenate arrays using <code>..</code> (result needs allocation if dynamic):</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> a </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5">1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 2</span><span style="color:#A68295">};</span></span>
-<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> b </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5">3</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 4</span><span style="color:#A68295">};</span></span>
-<span class="line"><span style="color:#DA9188">i32[</span><span style="color:#AD687D">const</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> c </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> alloc</span><span style="color:#A68295"> []:</span><span style="color:#D0CDC8"> a </span><span style="color:#AD687D">..</span><span style="color:#D0CDC8"> b</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // c = {1, 2, 3, 4}</span></span></code></pre>
+            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> a </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 1</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 2</span><span style="color:#A68295"> ];</span></span>
+<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> b </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 3</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 4</span><span style="color:#A68295"> ];</span></span>
+<span class="line"><span style="color:#DA9188">i32[</span><span style="color:#AD687D">const</span><span style="color:#A68295">]</span><span style="color:#D0CDC8"> c </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> alloc</span><span style="color:#A68295"> []:</span><span style="color:#D0CDC8"> a </span><span style="color:#AD687D">..</span><span style="color:#D0CDC8"> b</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // c = [ 1, 2, 3, 4 ]</span></span></code></pre>
             
             <h3>Slices</h3>
             <p>Slices provide a way to refer to a contiguous subsequence of an array's elements using the syntax <code>array[start : end]</code> (inclusive). While slices internally reference the original array data (pointer, length, offset), operations involving slices typically exhibit value semantics.</p>
             <p>Creating a slice does not copy data immediately. However, assigning a slice to an array variable copies the referenced elements:</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> array </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 40</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 50</span><span style="color:#A68295"> };</span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// slice_val now contains a copy of { 20, 30, 40 }</span></span>
-<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> slice_val </span><span style="color:#AD687D">=</span><span style="color:#DA9188"> array</span><span style="color:#A68295">[</span><span style="color:#5276B5">1</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 3</span><span style="color:#A68295">];</span></span></code></pre> 
+            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> array </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 40</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 50</span><span style="color:#A68295"> ];</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">// slice_val now contains a copy of [ 20, 30, 40 ]</span></span>
+<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> slice_val </span><span style="color:#AD687D">=</span><span style="color:#DA9188"> array</span><span style="color:#A68295">[</span><span style="color:#5276B5">1</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 3</span><span style="color:#A68295">];</span><span style="color:#54524F;font-style:italic"> // array[1 : 3] is not a copy, just pointer to data</span></span></code></pre> 
             <p>Slices can be used on the left side of an assignment to modify a portion of the original array. The right-hand side expression (which might itself be a slice) is evaluated, and its elements are copied into the memory locations designated by the left-hand slice:</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> array </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 40</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 50</span><span style="color:#A68295"> };</span></span>
-<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> new_data </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 22</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 33</span><span style="color:#A68295"> };</span></span>
+            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> array </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 40</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 50</span><span style="color:#A68295"> ];</span></span>
+<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> new_data </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 22</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 33</span><span style="color:#A68295"> ];</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Copies elements from new_data into array at indices 1 and 2</span></span>
 <span class="line"><span style="color:#DA9188">array</span><span style="color:#A68295">[</span><span style="color:#5276B5">1</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 2</span><span style="color:#A68295">]</span><span style="color:#AD687D"> =</span><span style="color:#D0CDC8"> new_data</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// array is now { 10, 22, 33, 40, 50 }</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">// array is now [ 10, 22, 33, 40, 50 ]</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Copies element from array[4] into array[0]</span></span>
-<span class="line"><span style="color:#DA9188">array</span><span style="color:#A68295">[</span><span style="color:#5276B5">0</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 0</span><span style="color:#A68295">]</span><span style="color:#AD687D"> =</span><span style="color:#DA9188"> array</span><span style="color:#A68295">[</span><span style="color:#5276B5">4</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 4</span><span style="color:#A68295">];</span><span style="color:#D0CDC8"> </span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// array is now { 50, 22, 33, 40, 50 }</span></span></code></pre>
+<span class="line"><span style="color:#DA9188">array</span><span style="color:#A68295">[</span><span style="color:#5276B5">0</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 0</span><span style="color:#A68295">]</span><span style="color:#AD687D"> =</span><span style="color:#DA9188"> array</span><span style="color:#A68295">[</span><span style="color:#5276B5">4</span><span style="color:#A68295"> :</span><span style="color:#5276B5"> 4</span><span style="color:#A68295">];</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">// array is now [ 50, 22, 33, 40, 50 ]</span></span></code></pre>
             <p>Slice syntax variants:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">array[</span><span style="color:#D0CDC8">N</span><span style="color:#A68295">:]</span><span style="color:#54524F;font-style:italic">  // Slice from index N to the end</span></span>
 <span class="line"><span style="color:#D0CDC8">array</span><span style="color:#A68295">[:</span><span style="color:#D0CDC8">M</span><span style="color:#A68295">]</span><span style="color:#54524F;font-style:italic">  // Slice from the beginning up to index M (inclusive)</span></span>
@@ -325,7 +432,7 @@
             <p class="note">Using slices within dynamic arrays (safety check of static arrays should be provided by compiler) requires careful management, especially when modifying arrays via slice assignments. The length of the right-hand side must match the length implied by the left-hand side slice.</p>
         </section>
 
-        <section>
+        <section id="loops">
             <h2>Loops</h2>
             <p>The language provides `for`, `while`, and `loop` constructs.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// C-style for loop</span></span>
@@ -339,14 +446,14 @@
 <span class="line"><span style="color:#A68295">}</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Range-based loop (iterates indices 0 to array.length-1)</span></span>
-<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> my_array </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5">10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295">};</span></span>
-<span class="line"><span style="color:#AD687D">loop</span><span style="color:#DA9188"> my_array</span><span style="color:#AD687D"> using</span><span style="color:#DA9188"> i32</span><span style="color:#D0CDC8"> idx </span><span style="color:#A68295">{</span></span>
-<span class="line"><span style="color:#DA9188">    i32</span><span style="color:#D0CDC8"> element </span><span style="color:#AD687D">=</span><span style="color:#DA9188"> my_array[</span><span style="color:#D0CDC8">idx</span><span style="color:#A68295">];</span></span>
+<span class="line"><span style="color:#DA9188">i32</span><span style="color:#A68295">[]</span><span style="color:#D0CDC8"> array </span><span style="color:#AD687D">=</span><span style="color:#A68295"> [</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 20</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 30</span><span style="color:#A68295"> ];</span></span>
+<span class="line"><span style="color:#AD687D">loop</span><span style="color:#DA9188"> array</span><span style="color:#AD687D"> using</span><span style="color:#DA9188"> i32</span><span style="color:#D0CDC8"> idx </span><span style="color:#A68295">{</span></span>
+<span class="line"><span style="color:#DA9188">    i32</span><span style="color:#D0CDC8"> element </span><span style="color:#AD687D">=</span><span style="color:#DA9188"> array[</span><span style="color:#D0CDC8">idx</span><span style="color:#A68295">];</span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">    // ... use idx and element</span></span>
 <span class="line"><span style="color:#A68295">}</span></span></code></pre>
         </section>
 
-        <section>
+        <section id="enums">
             <h2>Enums</h2>
             <p>Enums define named constants, acting like `embed` variables (values must be compile-time known). If a value is omitted, it's assigned sequentially based on the previous value (+1). An underlying integer type can be specified (default depends on values, often `i32`).</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#D0CDC8">enum Color </span><span style="color:#A68295">:</span><span style="color:#DA9188"> u8</span><span style="color:#A68295"> {</span><span style="color:#54524F;font-style:italic"> // Explicit underlying type u8</span></span>
@@ -355,7 +462,7 @@
 <span class="line"><span style="color:#D0CDC8">    BLUE</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">      // Value is 3</span></span>
 <span class="line"><span style="color:#A68295">}</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#D0CDC8">enum Status </span><span style="color:#A68295">{</span><span style="color:#54524F;font-style:italic">   // Implicit underlying type (likely i32)</span></span>
+<span class="line"><span style="color:#D0CDC8">enum Status </span><span style="color:#A68295">{</span><span style="color:#54524F;font-style:italic">   // Implicit underlying default integer type (likely i64)</span></span>
 <span class="line"><span style="color:#D0CDC8">    OK </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 0</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#D0CDC8">    ERROR </span><span style="color:#AD687D">=</span><span style="color:#AD687D"> -</span><span style="color:#5276B5">1</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#D0CDC8">    PENDING</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">   // Value is 0 (based on previous ERROR -&gt; -1 + 1 = 0)</span></span>
@@ -366,9 +473,10 @@
 <span class="line"><span style="color:#DA9188">u8</span><span style="color:#D0CDC8"> c </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> Color</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">RED</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Access using '.'</span></span></code></pre> <p class="note">Floating-point or other non-integer values assigned in enums are typically cast to the underlying integer type.</p>
         </section>
 
-        <section>
+        <section id="custom_data_types">
             <h2>Custom Data Types</h2>
             
+            <section =="" id="structs">
             <h3>Structs</h3>
             <p>Structs group multiple data fields of potentially different types under one name. Defined using <code>def</code> (<code>struct</code> keyword optional).</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">def</span><span style="color:#DA9188"> Point</span><span style="color:#A68295"> {</span><span style="color:#54524F;font-style:italic"> // 'def struct Point' is also valid</span></span>
@@ -403,10 +511,12 @@
 <span class="line"><span style="color:#DA9188">Point</span><span style="color:#D0CDC8"> p_rest </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#D0CDC8"> x</span><span style="color:#A68295">:</span><span style="color:#5276B5"> 1.0</span><span style="color:#A68295">,</span><span style="color:#AD687D"> ..</span><span style="color:#A68295">.:</span><span style="color:#5276B5"> 0</span><span style="color:#A68295"> };</span><span style="color:#54524F;font-style:italic"> // y becomes 0.0</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// Arithmetic on initializers (applies element-wise) (*removed, may return back)</span></span>
-<span class="line"><span style="color:#DA9188">Point</span><span style="color:#D0CDC8"> p_calc </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5">1.0</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 1.0</span><span style="color:#A68295">}</span><span style="color:#AD687D"> +</span><span style="color:#A68295"> {</span><span style="color:#D0CDC8">x</span><span style="color:#A68295">:</span><span style="color:#5276B5"> 0.5</span><span style="color:#A68295">,</span><span style="color:#D0CDC8"> y</span><span style="color:#A68295">:</span><span style="color:#AD687D"> -</span><span style="color:#5276B5">0.5</span><span style="color:#A68295">}</span><span style="color:#AD687D"> *</span><span style="color:#5276B5"> 2.0</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // -&gt; {2.0, 0.0}</span></span></code></pre>
+<span class="line"><span style="color:#DA9188">Point</span><span style="color:#D0CDC8"> p_calc </span><span style="color:#AD687D">=</span><span style="color:#A68295"> {</span><span style="color:#5276B5"> 1.0</span><span style="color:#A68295">,</span><span style="color:#5276B5"> 1.0</span><span style="color:#A68295"> }</span><span style="color:#AD687D"> +</span><span style="color:#A68295"> {</span><span style="color:#D0CDC8"> x</span><span style="color:#A68295">:</span><span style="color:#5276B5"> 0.5</span><span style="color:#A68295">,</span><span style="color:#D0CDC8"> y</span><span style="color:#A68295">:</span><span style="color:#AD687D"> -</span><span style="color:#5276B5">0.5</span><span style="color:#A68295"> }</span><span style="color:#AD687D"> *</span><span style="color:#5276B5"> 2.0</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // -&gt; { 2.0, 0.0 }</span></span></code></pre>
             <p class="note">Combining ordered and named initializers is disallowed. Arithmetic requires compatible initializers (same fields set or one side is scalar).</p>
+            </section>
 
-            <h3>Unions</h3>
+            <section id="unions">
+            <h3 id="unions">Unions</h3>
             <p>Unions allow storing different types in the same memory location, but only one type is active at a time. Defined using <code>def union</code>.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">def</span><span style="color:#DA9188"> union</span><span style="color:#DA9188"> IntOrFloat</span><span style="color:#A68295"> {</span></span>
 <span class="line"><span style="color:#D0CDC8">    i32 i</span><span style="color:#A68295">;</span></span>
@@ -416,11 +526,12 @@
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">IntOrFloat</span><span style="color:#D0CDC8"> val</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#D0CDC8">val</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">i </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 10</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic">      // val now holds an integer</span></span>
 <span class="line"><span style="color:#DA9188">f32</span><span style="color:#D0CDC8"> num </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> val</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">f</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Undefined behavior if i was last written</span></span></code></pre>
+            </section>
         </section>
 
-        <section>
+        <section id="namespaces">
             <h2>Namespaces</h2>
-            <p>Namespaces (<code>namespace Name { ... }</code>) group declarations to avoid name conflicts. Access members using the scope resolution operator (<code>::</code>).</p>
+            <p>Namespaces group declarations to avoid name conflicts. Access members using the scope resolution operator (<code>::</code>).</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">namespace</span><span style="color:#DA9188"> Math</span><span style="color:#A68295"> {</span></span>
 <span class="line"><span style="color:#AD687D">    const</span><span style="color:#D0CDC8"> PI </span><span style="color:#AD687D">=</span><span style="color:#5276B5"> 3.14</span><span style="color:#A68295">;</span></span>
 <span class="line"><span style="color:#DA9188">    fcn</span><span style="color:#E2ADBC"> area</span><span style="color:#D0CDC8">(</span><span style="color:#DA9188">f32</span><span style="color:#D0CDC8"> radius</span><span style="color:#A68295">)</span><span style="color:#AD687D"> -&gt;</span><span style="color:#DA9188"> f32</span><span style="color:#A68295"> {</span><span style="color:#54524F;font-style:italic"> /{ ... /}</span><span style="color:#A68295"> }</span></span>
@@ -429,7 +540,7 @@
 <span class="line"><span style="color:#DA9188">f32</span><span style="color:#D0CDC8"> circ_area </span><span style="color:#AD687D">=</span><span style="color:#D0CDC8"> Math</span><span style="color:#AD687D">::</span><span style="color:#E2ADBC">area</span><span style="color:#A68295">(</span><span style="color:#5276B5">5.0</span><span style="color:#A68295">);</span></span></code></pre>
         </section>
 
-        <section>
+        <section id="imports">
             <h2>Imports</h2> <p>Code from other files is included using the <code>import</code> keyword. Direct import into the current scope is disallowed; imported content must always be wrapped.</p>
             <p>Import file content into a namespace:</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#AD687D">import</span><span style="color:#D0CDC8"> math_utils</span><span style="color:#A68295">.</span><span style="color:#DA9188">vi</span><span style="color:#AD687D"> as</span><span style="color:#DA9188"> namespace</span><span style="color:#D0CDC8"> Math</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
@@ -439,7 +550,7 @@
 <span class="line"><span style="color:#AD687D">import</span><span style="color:#D0CDC8"> config_vars</span><span style="color:#A68295">.</span><span style="color:#DA9188">vi</span><span style="color:#AD687D"> as</span><span style="color:#D0CDC8"> scope</span><span style="color:#A68295">;</span><span style="color:#54524F;font-style:italic"> // Executes config_vars.vi code immediately</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#E2ADBC">run_init</span><span style="color:#A68295">();</span><span style="color:#54524F;font-style:italic"> // Call the imported function</span></span></code></pre>
-            <p>Import specific identifiers from a file using <code>from ... import ...</code>:</p>
+            <p>Import specific identifiers from a file using <code>from ... import ...</code> (*TODO):</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Import PI and E from constants.vi into namespace Consts</span></span>
 <span class="line"><span style="color:#AD687D">import</span><span style="color:#AD687D"> from</span><span style="color:#D0CDC8"> constants</span><span style="color:#A68295">.</span><span style="color:#DA9188">vi</span><span style="color:#D0CDC8"> PI</span><span style="color:#A68295">,</span><span style="color:#DA9188"> E</span><span style="color:#AD687D"> as</span><span style="color:#DA9188"> namespace</span><span style="color:#D0CDC8"> Consts</span><span style="color:#A68295">;</span><span style="color:#D0CDC8"> </span></span>
 <span class="line"></span>
@@ -448,12 +559,12 @@
 <span class="line"><span style="color:#E2ADBC">helper_func</span><span style="color:#A68295">();</span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">// or</span></span>
 <span class="line"><span style="color:#AD687D">import</span><span style="color:#AD687D"> from</span><span style="color:#D0CDC8"> helpers</span><span style="color:#A68295">.</span><span style="color:#DA9188">vi</span><span style="color:#DA9188"> helper_func</span><span style="color:#AD687D"> as</span><span style="color:#DA9188"> namespace</span><span style="color:#D0CDC8"> Help</span><span style="color:#A68295">;</span></span>
-<span class="line"><span style="color:#D0CDC8">Hlp</span><span style="color:#AD687D">::</span><span style="color:#E2ADBC">helper_func</span><span style="color:#A68295">();</span></span></code></pre> <p>Restrict visibility of imported symbols using <code>local</code> (they won't be re-exported if the current file is imported elsewhere):</p>
+<span class="line"><span style="color:#D0CDC8">Hlp</span><span style="color:#AD687D">::</span><span style="color:#E2ADBC">helper_func</span><span style="color:#A68295">();</span></span></code></pre> <p>Restrict visibility of imported symbols using <code>local</code> (they won't be re-exported if the current file is imported elsewhere)  (*TODO):</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#AD687D">import</span><span style="color:#D0CDC8"> internal_lib</span><span style="color:#A68295">.</span><span style="color:#DA9188">vi</span><span style="color:#AD687D"> as</span><span style="color:#AD687D"> local</span><span style="color:#DA9188"> namespace</span><span style="color:#D0CDC8"> Internal</span><span style="color:#A68295">;</span></span></code></pre>
             <p class="note">Import paths are typically relative to the importing file. All imports are processed before other code execution begins, respecting the order of import statements.</p>
         </section>
 
-        <section>
+        <section id="error">
             <h2>Error Handling</h2>
             <p>Errors are represented by unique identifiers grouped into hierarchical error sets, defined using <code>error</code>.</p>
             <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#DA9188">error</span><span style="color:#D0CDC8"> FileError </span><span style="color:#A68295">{</span></span>
@@ -504,13 +615,10 @@
 <span class="line"><span style="color:#54524F;font-style:italic">// Use result if no error occurred and wasn't handled inside block</span></span></code></pre>
         </section>
 
-        <section>
+        <section id="interoperability">
             <h2>Interoperability (Foreign Functions)</h2> <p>Functions can be written directly in C or potentially other languages if support is defined.</p>
             <p>The <code>C</code> tag is built-in for including C code directly within a function body. The compiler will integrate this C code during the C intermediate language generation phase.</p>
-            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Declare external C function if needed (e.g., from system library)</span></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// extern fcn printf(const u8^ format, ...) -&gt; i32; // Example syntax for extern</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#54524F;font-style:italic">// Define a function with a C body</span></span>
+            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Define a function with a C body</span></span>
 <span class="line"><span style="color:#D0CDC8">fcn </span><span style="color:#DA9188">print_hello[</span><span style="color:#D0CDC8">C</span><span style="color:#A68295">]()</span><span style="color:#A68295"> {</span></span>
 <span class="line"><span style="color:#54524F;font-style:italic">    // This is standard C code</span></span>
 <span class="line"><span style="color:#D0CDC8">    #include </span><span style="color:#AD687D">&lt;</span><span style="color:#D0CDC8">stdio</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">h</span><span style="color:#AD687D">&gt;</span><span style="color:#54524F;font-style:italic"> // C includes might be needed</span></span>
@@ -520,6 +628,108 @@
 <span class="line"><span style="color:#54524F;font-style:italic">// Call the function</span></span>
 <span class="line"><span style="color:#E2ADBC">print_hello</span><span style="color:#A68295">();</span></span></code></pre>
             <p class="note">Support for other languages would require defining how the compiler should invoke an external compiler/tool for that language to produce compatible C code or object files.</p> </section>
+            <p>As handling includes inside functions is not very convenient, one can also define a C scope:</p>
+            <pre class="shiki Witchesbrew" style="background-color:#11080d;color:#d0cdc8" tabindex="0"><code><span class="line"><span style="color:#54524F;font-style:italic">// Define a scope with a C body</span></span>
+<span class="line"><span style="color:#A68295">[</span><span style="color:#D0CDC8">C</span><span style="color:#A68295">]</span><span style="color:#A68295"> {</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">    // This is standard C code</span></span>
+<span class="line"><span style="color:#54524F;font-style:italic">    // It will apply globally</span></span>
+<span class="line"><span style="color:#D0CDC8">    #include </span><span style="color:#AD687D">&lt;</span><span style="color:#D0CDC8">stdio</span><span style="color:#A68295">.</span><span style="color:#D0CDC8">h</span><span style="color:#AD687D">&gt;</span></span>
+<span class="line"><span style="color:#AD687D">    const</span><span style="color:#D0CDC8"> char</span><span style="color:#AD687D">*</span><span style="color:#D0CDC8"> HELLO_TEXT </span><span style="color:#AD687D">=</span><span style="color:#F0CA93"> "Hello from embedded C!</span><span style="color:#DA9188">\n</span><span style="color:#F0CA93">"</span><span style="color:#A68295">;</span></span>
+<span class="line"><span style="color:#A68295">}</span></span></code></pre>
     </section></main>
+    <nav id="toc" class="toc">
+        <ul>
+            <li><a href="#introduction">Introduction</a></li>
+            <li><a href="#hello_world">Hello, World!</a>
+                <ul>
+                    <li><a href="#compiling">Compiling and Running</a></li>
+                </ul>
+            </li>
+            <li><a href="#char_set">Character Set</a></li>
+            <li><a href="#comments">Comments</a></li>
+            <li><a href="#keywords">Keywords</a></li>
+            <li><a href="#data_types">Built-in Primitive Types</a></li>
+            <li><a href="#literals">Literals</a>
+                <ul>
+                    <li><a href="#int_literals">Integer Literals</a></li>
+                    <li><a href="#float_literals">Floating-Point Literals</a></li>
+                    <li><a href="#char_literals">Character Literals</a></li>
+                    <li><a href="#string_literals">String Literals</a></li>
+                </ul>
+            </li>
+            <li><a href="#operators">Operators</a></li>
+            <li><a href="#qualifiers">Qualifiers</a></li>
+            <li><a href="#pointers">Pointers</a></li>
+            <li><a href="#allocations">Memory Allocation</a></li>
+            <li><a href="#arrays">Arrays</a></li>
+            <li><a href="#loops">Loops</a></li>
+            <li><a href="#enums">Enums</a></li>
+            <li><a href="#custom_data_types">Custom Data Types</a>
+                <ul>
+                    <li><a href="#structs">Structs</a></li>
+                    <li><a href="#unions">Unions</a></li>
+                </ul>
+            </li>
+            <li><a href="#namespaces">Namespaces</a></li>
+            <li><a href="#imports">Imports</a></li>
+            <li><a href="#error">Error Handling</a></li>
+            <li><a href="#interoperability" '="">Interoperability</a></li>
+        </ul>
+    </nav>
+    </super-main>
+    <script>
+        const toc = document.getElementById('toc');
+        let currentNode = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const sections = Array.from(document.querySelectorAll('section[id]'));
+
+            function updateActiveSection() {
+                let topSection = null;
+                let minTop = Infinity;
+
+                for (const section of sections) {
+                    const rect = section.getBoundingClientRect();
+                    if (rect.top >= 0 && rect.top < minTop) {
+                        minTop = rect.top;
+                        topSection = section;
+                    }
+                }
+
+                if (!topSection) return;
+
+                const id = topSection.getAttribute('id');
+                const node = toc.querySelector(`li a[href="#${id}"]`);
+                if (!node || node === currentNode) return;
+
+                if (currentNode) {
+                    currentNode.classList.remove('active-but-color', 'active-just-color');
+                    currentNode.parentElement?.classList.remove('active-but-color', 'active-just-color');
+                }
+
+                currentNode = node;
+
+                const parent = node.parentElement;
+                const grandParent = parent?.parentElement;
+                const greatGrandParent = grandParent?.parentElement;
+                const iamInRoot = greatGrandParent?.tagName === 'NAV';
+
+                if (iamInRoot) {
+                    parent.classList.add('active-but-color');
+                    node.classList.add('active-just-color');
+                } else {
+                    parent.classList.add('active-but-color');
+                    node.classList.add('active-just-color');
+                }
+            }
+
+            document.addEventListener('scroll', () => {
+                requestAnimationFrame(updateActiveSection);
+            });
+
+            updateActiveSection();
+        });
+
+    </script>
 
 </body></html>
