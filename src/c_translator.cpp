@@ -414,6 +414,13 @@ char* escapePath(const std::filesystem::path& path) {
 
 void printDebugLine(FILE* file, Location* loc) {
     if (!translatorC.debugInfo) return;
+    
+    // TODO
+    if (!loc || !(loc->file)) {
+        printf("TODO : unsupported location to print debug information\n");
+        return;
+    }
+    
     if (loc && lastLine != loc->line) {
         if (!loc->file->absPathRaw) loc->file->absPathRaw = escapePath(loc->file->absPath);
         fprintf(file, "\n#line %i \"%s\"\n", loc->line, loc->file->absPathRaw);

@@ -598,7 +598,7 @@ struct SyntaxNode {
     
     NodeType type;
     Scope* scope;
-    Location* loc;
+    Location* loc = NULL;
 
     int parentIdx;
     uint64_t snFlags; // sn as syntax node

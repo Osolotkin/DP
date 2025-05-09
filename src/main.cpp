@@ -13,6 +13,27 @@ int calledFromBat = 0;
 
 int run ();
 
+void printMainHelp() {
+    Logger::log(Logger::PLAIN, "\nThe following commands are available: run, build, translate.\n");
+    Logger::log(Logger::PLAIN, "To get more information about each command, use the -h option as follows: run -h\n");
+    Logger::log(Logger::PLAIN, "To compile and run a file named 'file_name', use: run file_name\n\n");
+}
+
+void printSubHelp() {
+    Logger::log(Logger::PLAIN, "\nOptions:\n");
+    Logger::log(Logger::PLAIN, "  -ol (Output Language):\n");
+    Logger::log(Logger::PLAIN, "    Options: c\n");
+    Logger::log(Logger::PLAIN, "    Default: c\n");
+    Logger::log(Logger::PLAIN, "  -of (Output File):\n");
+    Logger::log(Logger::PLAIN, "    Filename without the extension where the executable will be saved\n");
+    Logger::log(Logger::PLAIN, "  -od (Output Directory):\n");
+    Logger::log(Logger::PLAIN, "    Directory where translated files of the language specified in -ol will be saved\n");
+    Logger::log(Logger::PLAIN, "  -gd (Generate Debug Information):\n");
+    Logger::log(Logger::PLAIN, "    Generates debug information\n");
+    Logger::log(Logger::PLAIN, "  -h (Help):\n");
+    Logger::log(Logger::PLAIN, "    Prints this help message\n\n");
+}
+
 int parseArgs(char* argv[], int argc) {
 
 	int atLeastOneLangSet = 0;
@@ -92,18 +113,7 @@ int parseArgs(char* argv[], int argc) {
 
 		} else if (!strcmp(option, "h")) {
 			// help
-
-			Logger::log(Logger::INFO, "Compiler options:\n");
-			Logger::log(Logger::INFO, "-ol (output lang):\n");
-			Logger::log(Logger::INFO, "\toptions: c\n");
-			Logger::log(Logger::INFO, "\tdefault: c\n");
-			Logger::log(Logger::INFO, "-of (output file):\n");
-			Logger::log(Logger::INFO, "\tfilename without the extension the executable will be saved to\n");
-			Logger::log(Logger::INFO, "-od (output directory):\n");
-			Logger::log(Logger::INFO, "\tdirname translated files of the language specified in -ol will be saved to\n");
-			Logger::log(Logger::INFO, "-h (help):\n");
-			Logger::log(Logger::INFO, "\tprints help\n");
-
+			printSubHelp();
 			return -1;
 
 		} else if (!strcmp(option, "b")) {
@@ -130,27 +140,25 @@ int main(int argc, char* argv[]) {
 	int atLeastOneLangSet = 0;
 	
 	if (argc < 2) {
-		Logger::log(Logger::INFO, "You need to specify command!\n");
-		Logger::log(Logger::INFO, "There are following commands available: run, build.\n");
-		Logger::log(Logger::INFO, "To get more information about each command use -h option as follows:\t run -h\n");
-		Logger::log(Logger::INFO, "To just compile and run the file 'file_name' use:\t run file_name\n");
+		Logger::log(Logger::PLAIN, "You need to specify command!\n");
+		printMainHelp();
 		return -1;
 	}
 
 	char* const command = argv[1];
 	if (!strcmp(command, "build")) {
 		Compiler::command = Compiler::BUILD;
-		parseArgs(argv + 2, argc - 2);
 	} else if (!strcmp(command, "run")) {
 		Compiler::command = Compiler::RUN;
-		parseArgs(argv + 2, argc - 2);
 	} else if (!strcmp(command, "translate")) {
 		Compiler::command = Compiler::TRANSLATE;
-		parseArgs(argv + 2, argc - 2);
 	} else {
 		Logger::log(Logger::ERROR, "Unknown command!\n");
+		printMainHelp();
 		return -1;
 	}
+
+	if (parseArgs(argv + 2, argc - 2) < 0) return -1;
 
 	if (!Compiler::outFile) {
 
@@ -292,4 +300,4 @@ int run () {
 //	 prints help
 //
 //  -b (bat)
-//	 indicates that program is called run from the bat file 
+//	 indicates that program is called run from the bat file

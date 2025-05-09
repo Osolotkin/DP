@@ -1331,7 +1331,7 @@ namespace Parser {
         if (dtype < 0) return dtype;
 
         const int err = parseDefinitionAssignment(scope, str, loc, varDef, endChar, 0);
-        if (err) return err;
+        if (err < 0) return err;
 
         *outVarDef = varDef;
         return Err::OK;
@@ -2378,7 +2378,7 @@ namespace Parser {
 
                     VariableDefinition* varDef;
                     const int err = parseVariableDefinition(newScope, str, loc, param, CHAR_CAT(')',','), &varDef);
-                    if (err) return err;
+                    if (err < 0) return err;
 
                     //pushDefLike(newScope->defSearch, varDef->var);
                     //setParentIdx(varDef->var);
@@ -3164,7 +3164,7 @@ namespace Parser {
 
                     VariableDefinition* varDef;
                     err = parseVariableDefinition(scope, str, loc, param, toDoubleChar('}', ';'), &varDef);
-                    if (err) return err;
+                    if (err < 0) return err;
                     
                     newTypeDefinition->vars.push_back(varDef->var);
 
