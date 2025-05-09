@@ -1,11 +1,14 @@
-# vi-debugger README
+# Vi-Debugger
 
-Wrapper for gdb to run .vi files.
+Wrapper for GDB to run `.vi` files.
 
-If not autodetected, add new debug config in .vscode/launch.json and use predefined Vi Debugger config (type Vi and snippet should appear).
+If not autodetected, add a new debug configuration in `.vscode/launch.json` and use the predefined **Vi Debugger** config (type `Vi` inside **configuration** and the snippet should appear).
 
-On start of debug session adds debug tasks to .vscode/tasks.json.
-If tasks were not added successfully for some reason, command Vi Debugger: Vi Debugger: Ensure Tasks can be used to add them manually.
-Doesn't support comments in tasks.json
+When a debug session starts, this extension adds debug tasks to `.vscode/tasks.json`.
 
-Don't forget to specify viDebugger.compilerPath in launch.json.
+If the tasks are not added successfully, you can manually add them using the command:
+**Vi Debugger: Ensure Tasks**.
+
+**Note:** Comments in `tasks.json` are not supported.
+
+Don't forget to specify `viDebugger.compilerPath` and `cwd` (if needed) in `launch.json`.
