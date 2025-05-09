@@ -187,7 +187,8 @@ namespace Utils {
 
         }
 
-        char* arr = (char*)malloc(bytes * len);
+        // char* arr = (char*) malloc(bytes * len);
+        char* arr = copyWhenAscii ? (char*) malloc(bytes * len) : NULL;
         switch (bytes) {
 
         case 1: {
